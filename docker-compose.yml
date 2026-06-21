@@ -1,14 +1,39 @@
 services:
-    db:
-      image: postgres:16
-      restart: unless-stopped
-      environment:
-        POSTGRES_USER: bonsight
-        POSTGRES_PASSWORD: bonsight
-        POSTGRES_DB: bonsight
-      ports:
-        - "5432:5432"
-      volumes:
-        - bonsight_pgdata:/var/lib/postgresql/data
-  volumes:
-    bonsight_pgdata:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bonsight
+      POSTGRES_PASSWORD: bonsight
+      POSTGRES_DB: bonsight
+    ports:
+      - "5432:5432"
+    volumes:
+      - bonsight_pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    environment:
+      DATABASE_URL: "postgresql://bonsight:bonsight@db:5432/bonsight?schema=public"
+      PORT: "3000"
+      # TODO: AWS環境変数は cmd_019 で追加
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:3000/api/v1"
+    depends_on:
+      - api
+
+volumes:
+  bonsight_pgdata:

@@ -11,3 +11,68 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum BonsaiVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+}
+
+model User {
+  id          String   @id @default(cuid())
+  cognitoSub  String   @unique // TODO: Cognito sub - 未結線(cmd_019以降)
+  displayName String
+  region      String?
+  climatezone String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bonsais     Bonsai[]
+}
+
+model Bonsai {
+  id            String           @id @default(cuid())
+  owner         String // Cognito sub - TODO: Cognito未結線
+  visibility    BonsaiVisibility @default(PRIVATE)
+  name          String
+  nickname      String?
+  species       String?
+  acquiredAt    DateTime?
+  estimatedAge  Int?
+  origin        String? // 実生/挿し木/購入
+  potInfo       String?
+  style         String?
+  currentState  String?
+  coverImageKey String? // S3キー - TODO: S3未結線(cmd_019以降)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  userId        String?
+  user          User?            @relation(fields: [userId], references: [id])
+  media         Media[]
+  aiAdvices     AIAdvice[]
+}
+
+model Media {
+  id        String    @id @default(cuid())
+  bonsaiId  String
+  bonsai    Bonsai    @relation(fields: [bonsaiId], references: [id])
+  type      MediaType @default(PHOTO)
+  s3Key     String // TODO: S3未結線
+  caption   String?
+  takenAt   DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model AIAdvice {
+  id         String   @id @default(cuid())
+  bonsaiId   String
+  bonsai     Bonsai   @relation(fields: [bonsaiId], references: [id])
+  mediaId    String?
+  diagnosis  Json // TODO: Bedrock未結線(cmd_019以降)
+  confidence Float?
+  createdAt  DateTime @default(now())
+}
