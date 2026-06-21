@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import AIBadge from '../components/AIBadge'
 import BonsightShell from '../components/BonsightShell'
 import Button from '../components/Button'
+import PhotoPlaceholder from '../components/PhotoPlaceholder'
 import StatusBadge from '../components/StatusBadge'
 import { STUB_AI_RESULT } from '../stubs/stubAiResult'
 import type { HealthFlag } from '../stubs/stubAiResult'
@@ -15,11 +16,17 @@ function levelToTone(level: HealthFlag['level']): Tone {
   return 'danger'
 }
 
-function SparkleIcon() {
+function confidenceLabel(c: number): string {
+  if (c >= 0.85) return '高'
+  if (c >= 0.6) return '中'
+  return '低'
+}
+
+function SparkleIcon({ size = 16 }: { size?: number }) {
   return (
     <svg
-      width="32"
-      height="32"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="#B0863F"
       xmlns="http://www.w3.org/2000/svg"
@@ -27,6 +34,49 @@ function SparkleIcon() {
     >
       <path d="M12 2 L14 10 L22 12 L14 14 L12 22 L10 14 L2 12 L10 10 Z" />
     </svg>
+  )
+}
+
+function AiBubble({ children }: { children: ReactNode }) {
+  return (
+    <div
+      data-testid="ai-bubble"
+      style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 8,
+        padding: '4px 16px',
+      }}
+    >
+      <div
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: '50%',
+          background: '#EDEBE6',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <SparkleIcon size={14} />
+      </div>
+      <div
+        style={{
+          background: '#fff',
+          border: '1px solid var(--color-border)',
+          borderRadius: '14px 14px 14px 4px',
+          padding: '12px 14px',
+          maxWidth: '82%',
+          fontSize: 13,
+          lineHeight: 1.65,
+          color: 'var(--color-ink)',
+        }}
+      >
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -49,9 +99,9 @@ export default function S5AiResult() {
     <BonsightShell
       screen="S5"
       showTabBar={false}
-      title="AI診断結果"
+      title="AI診断"
       onBack={() => navigate(-1)}
-      contextAction={{ label: '共有', onClick: () => {} }}
+      contextAction={{ label: '✦', onClick: () => {} }}
     >
       {loading ? (
         <div
@@ -63,88 +113,63 @@ export default function S5AiResult() {
             justifyContent: 'center',
           }}
         >
-          <SparkleIcon />
+          <SparkleIcon size={32} />
           <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginTop: 12, marginBottom: 0 }}>
             AI診断中...
           </p>
         </div>
       ) : (
         <>
-          {/* AI吹き出し */}
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '14px 14px 14px 4px',
-              padding: 16,
-              margin: 16,
-              border: '1px solid var(--color-border)',
-              boxShadow: '0 1px 4px rgba(0,0,0,.06)',
-            }}
-          >
-            {/* ① 樹種信頼度 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <AIBadge>AI診断</AIBadge>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>
-                樹種: {result.species}
-              </span>
+          {/* 対象写真サムネ */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0' }}>
+            <div style={{ width: 120, height: 90, borderRadius: '12px 12px 4px 12px', overflow: 'hidden' }}>
+              <PhotoPlaceholder label="診断対象" />
+            </div>
+          </div>
+
+          {/* 会話型AI吹き出し群 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 0' }}>
+            {/* 吹き出し①: 樹種確認 */}
+            <AiBubble>
+              <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 600 }}>
+                この盆栽は{result.species}ですね。
+              </p>
               <span
                 style={{
                   fontSize: 11,
-                  fontWeight: 500,
+                  padding: '2px 8px',
+                  borderRadius: 999,
                   background: 'var(--status-success-bg)',
                   color: 'var(--status-success-text)',
-                  borderRadius: 999,
-                  padding: '2px 8px',
                 }}
               >
-                確度 {Math.round(result.confidence * 100)}%
+                信頼度 {confidenceLabel(result.confidence)}
               </span>
-            </div>
+            </AiBubble>
 
-            {/* ② 健康フラグ一覧 */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 8,
-                margin: '12px 0',
-              }}
-            >
-              {result.health.map((flag) => (
-                <div
-                  key={flag.key}
-                  style={{
-                    background: `var(--status-${levelToTone(flag.level)}-bg)`,
-                    border: `1px solid var(--status-${levelToTone(flag.level)}-border)`,
-                    borderRadius: 10,
-                    padding: 10,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                    <StatusBadge tone={levelToTone(flag.level)}>{flag.label}</StatusBadge>
-                  </div>
-                  <p style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--color-text-secondary)', margin: '4px 0 0' }}>
-                    {flag.note}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {/* 吹き出し②: 健康フラグ (flex-wrap横並び) */}
+            <AiBubble>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>健康状態を確認しました。</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {result.health.map((f) => (
+                  <StatusBadge key={f.key} tone={levelToTone(f.level)}>
+                    {f.label}
+                  </StatusBadge>
+                ))}
+              </div>
+            </AiBubble>
 
-            {/* ③ 仕立てアドバイス */}
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', margin: '12px 0 4px' }}>
-              仕立て・管理
-            </p>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--color-ink)', margin: 0 }}>
-              {result.styling}
-            </p>
-
-            {/* ④ 季節の世話 */}
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', margin: '12px 0 4px' }}>
-              季節の世話
-            </p>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--color-ink)', margin: 0 }}>
-              {result.seasonal}
-            </p>
+            {/* 吹き出し③: 仕立て + 季節の世話 */}
+            <AiBubble>
+              <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                仕立て・管理
+              </p>
+              <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.6 }}>{result.styling}</p>
+              <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                季節の世話
+              </p>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>{result.seasonal}</p>
+            </AiBubble>
           </div>
 
           {/* 免責ノート */}
@@ -170,7 +195,7 @@ export default function S5AiResult() {
             ].map(({ label, path }) => (
               <button
                 key={label}
-                onClick={() => navigate(path)} // TODO: 文脈付き遷移
+                onClick={() => navigate(path)}
                 style={{
                   border: '1px solid #5C7A52',
                   color: '#5C7A52',

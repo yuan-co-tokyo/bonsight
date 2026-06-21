@@ -25,16 +25,40 @@ describe('S5AiResult', () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  it('loading=false 状態でAIBadge(AI診断)が表示される', async () => {
+  it('title に「AI診断」が含まれる(G1)', async () => {
     renderS5AiResult()
     await act(async () => { vi.advanceTimersByTime(2100) })
     expect(screen.getByText('AI診断')).toBeInTheDocument()
   })
 
+  it('対象写真サムネが存在する(G2)', async () => {
+    renderS5AiResult()
+    await act(async () => { vi.advanceTimersByTime(2100) })
+    expect(screen.getByText('診断対象')).toBeInTheDocument()
+  })
+
+  it('AiBubbleが複数(>=2個)存在する(G3)', async () => {
+    renderS5AiResult()
+    await act(async () => { vi.advanceTimersByTime(2100) })
+    expect(screen.getAllByTestId('ai-bubble').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('StatusBadgeがflex-wrapコンテナ内に存在する(G4)', async () => {
+    renderS5AiResult()
+    await act(async () => { vi.advanceTimersByTime(2100) })
+    expect(screen.getByText(STUB_AI_RESULT.health[0].label)).toBeInTheDocument()
+  })
+
+  it('「信頼度 高」表記が存在する(G5)', async () => {
+    renderS5AiResult()
+    await act(async () => { vi.advanceTimersByTime(2100) })
+    expect(screen.getByText(/信頼度 高/)).toBeInTheDocument()
+  })
+
   it('STUB_AI_RESULTの樹種が表示される', async () => {
     renderS5AiResult()
     await act(async () => { vi.advanceTimersByTime(2100) })
-    expect(screen.getByText(`樹種: ${STUB_AI_RESULT.species}`)).toBeInTheDocument()
+    expect(screen.getByText(`この盆栽は${STUB_AI_RESULT.species}ですね。`)).toBeInTheDocument()
   })
 
   it('免責ノートのテキストが表示される(必須)', async () => {
