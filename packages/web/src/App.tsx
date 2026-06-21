@@ -15,8 +15,14 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/s0" replace />} />
         <Route path="/s0" element={<S0Landing />} />
+        <Route path="/home" element={<S1Home />} />
         <Route path="/s1" element={<S1Home />} />
         <Route path="/s2" element={<S2Form />} />
+        <Route path="/bonsai/new" element={<S2Form />} />
+        <Route path="/bonsai/:id/edit" element={<S2Form />} />
+        <Route path="/bonsai/:id/photo" element={<S4Upload />} />
+        <Route path="/bonsai/:id/ai" element={<S5AiResult />} />
+        <Route path="/bonsai/:id" element={<S3Detail />} />
         <Route path="/s3/:id" element={<S3Detail />} />
         <Route path="/s3" element={<S3Detail />} />
         <Route path="/s4/:bonsaiId" element={<S4Upload />} />
