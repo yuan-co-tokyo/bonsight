@@ -22,23 +22,29 @@ function renderS3Detail(id: string) {
 describe('S3Detail', () => {
   beforeEach(() => mockNavigate.mockReset())
 
-  it('bonsaiId b1 で名前「五葉松」が表示される', () => {
+  it('bonsaiId b1 で名前「五葉松「翁」」が表示される', () => {
     renderS3Detail('b1')
-    expect(screen.getByText('五葉松')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '五葉松「翁」', level: 1 })).toBeInTheDocument()
   })
 
-  it('基本情報チップ(species/potSize/originArea)が表示される', () => {
+  it('樹齢・樹形・入手チップが表示される(S3-F4)', () => {
     renderS3Detail('b1')
-    // species は PhotoPlaceholder ラベルと Chip の両方に出るため getAllByText を使う
-    expect(screen.getAllByText('Pinus parviflora').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('中鉢 6号')).toBeInTheDocument()
-    expect(screen.getByText('関東')).toBeInTheDocument()
+    expect(screen.getByText('約25年')).toBeInTheDocument()
+    expect(screen.getByText('根締木')).toBeInTheDocument()
+    expect(screen.getByText('2025.5')).toBeInTheDocument()
   })
 
-  it('「写真を追加」「AIに診てもらう」ボタンがある', () => {
+  it('「写真を追加」がprimary、「AIに診てもらう」がsecondary(S3-F5)', () => {
     renderS3Detail('b1')
-    expect(screen.getByRole('button', { name: /写真を追加/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /AIに診てもらう/ })).toBeInTheDocument()
+    const addPhotoBtn = screen.getByRole('button', { name: /写真を追加/ })
+    expect(addPhotoBtn).toHaveAttribute('data-variant', 'primary')
+    const aiBtn = screen.getByRole('button', { name: /AIに診てもらう/ })
+    expect(aiBtn).toHaveAttribute('data-variant', 'secondary')
+  })
+
+  it('「成長タイムライン」見出しが表示される(S3-F7)', () => {
+    renderS3Detail('b1')
+    expect(screen.getByRole('heading', { name: '成長タイムライン', level: 2 })).toBeInTheDocument()
   })
 
   it('タイムライン0件時に空状態が表示される', () => {

@@ -3,31 +3,33 @@ import { useNavigate, useParams } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
 import Button from '../components/Button'
+import AIBadge from '../components/AIBadge'
 import { STUB_BONSAI_LIST } from '../stubs/stubBonsai'
 import { STUB_TIMELINE, type TimelineEntryStub } from '../stubs/stubTimeline'
 
-function LeafIcon() {
+function CalendarIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 3C7 8 7 16 12 21C17 16 17 8 12 3Z" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3 9H21" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8 2V6M16 2V6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }
 
-function PotIcon() {
+function TreeIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6 11h12l-1.5 7H7.5L6 11Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M4 11h16M9 11V7a3 3 0 016 0v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M12 3L19 14H14V21H10V14H5L12 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   )
 }
 
-function MapPinIcon() {
+function ShoppingBagIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 21C12 21 5 13.5 5 9a7 7 0 0114 0c0 4.5-7 12-7 12Z" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 7h12l-1.5 12H7.5L6 7Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M9 7V6a3 3 0 016 0v1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   )
 }
@@ -78,28 +80,52 @@ function formatDate(isoDate: string): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+function monthSpan(entries: TimelineEntryStub[]): string {
+  if (entries.length === 0) return '0'
+  if (entries.length === 1) return '1'
+  const times = entries.map(e => new Date(e.takenAt).getTime())
+  const min = new Date(Math.min(...times))
+  const max = new Date(Math.max(...times))
+  const months = (max.getFullYear() - min.getFullYear()) * 12 + (max.getMonth() - min.getMonth())
+  return String(Math.max(months, 1))
+}
+
 function TimelineCard({ entry }: { entry: TimelineEntryStub }) {
   return (
-    <div style={{ borderBottom: '1px solid var(--color-border)' }}>
-      <PhotoPlaceholder aspectRatio="16/9" />
-      <div style={{ padding: '10px 16px 14px' }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
-          {formatDate(entry.takenAt)}
-        </div>
-        <div
+    <div style={{
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 14,
+      marginBottom: 16,
+      overflow: 'hidden',
+    }}>
+      <div style={{ position: 'relative' }}>
+        <PhotoPlaceholder aspectRatio="16/10" label={formatDate(entry.takenAt)} />
+        <span
+          className="s3-date-pill"
           style={{
-            fontSize: 14,
-            fontWeight: 400,
-            color: 'var(--color-ink)',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          } as React.CSSProperties}
+            position: 'absolute',
+            bottom: 8,
+            left: 10,
+            background: 'rgba(255,255,255,0.85)',
+            borderRadius: 999,
+            padding: '3px 10px',
+            fontSize: 11,
+            fontWeight: 500,
+            backdropFilter: 'blur(4px)',
+          }}
         >
-          {entry.note}
-        </div>
+          {formatDate(entry.takenAt)}
+        </span>
       </div>
+      <div style={{ padding: 12, fontSize: 13, lineHeight: 1.55, color: 'var(--color-ink)' }}>
+        {entry.note}
+      </div>
+      {entry.aiDiagnosis !== null && (
+        <div style={{ padding: '0 12px 12px' }}>
+          <AIBadge>{entry.aiDiagnosis}</AIBadge>
+        </div>
+      )}
     </div>
   )
 }
@@ -137,27 +163,44 @@ export default function S3Detail() {
       contextAction={{ label: '編集', onClick: () => navigate(`/bonsai/${bonsai.id}/edit`) }}
     >
       <article className="s3-detail">
-        <PhotoPlaceholder className="s3-hero" label={bonsai.species} aspectRatio="4/3" />
+        {/* S3-F8: hero aspect-ratio 5/4 */}
+        <PhotoPlaceholder className="s3-hero" label={bonsai.speciesJa} aspectRatio="5/4" />
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: 16 }}>
-          <Chip icon={<LeafIcon />} label={bonsai.species} />
-          <Chip icon={<PotIcon />} label={bonsai.potSize} />
-          <Chip icon={<MapPinIcon />} label={bonsai.originArea} />
+        {/* S3-F3: 名前+樹種ブロック */}
+        <div className="s3-bonsai-name-block" style={{ padding: '16px 16px 8px' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-ink)', margin: 0 }}>
+            {bonsai.name}
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: '2px 0 0' }}>
+            {bonsai.speciesJa}
+          </p>
         </div>
 
+        {/* S3-F4: チップを樹齢/樹形/入手に変更 */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 16px 16px' }}>
+          <Chip icon={<CalendarIcon />} label={bonsai.treeAge} />
+          <Chip icon={<TreeIcon />} label={bonsai.style} />
+          <Chip icon={<ShoppingBagIcon />} label={bonsai.acquiredAt} />
+        </div>
+
+        {/* S3-F5: 写真を追加=primary, AIに診てもらう=secondary */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
-          <Button variant="secondary" onClick={() => navigate(`/bonsai/${bonsai.id}/photo`)}>
+          <Button variant="primary" onClick={() => navigate(`/bonsai/${bonsai.id}/photo`)}>
             <CameraIcon /> 写真を追加
           </Button>
-          <Button variant="primary" onClick={() => navigate(`/bonsai/${bonsai.id}/ai`)}>
+          <Button variant="secondary" onClick={() => navigate(`/bonsai/${bonsai.id}/ai`)}>
             <SparkleIcon /> AIに診てもらう
           </Button>
         </div>
 
-        <section style={{ paddingBottom: 24 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)', padding: '0 16px', marginBottom: 8 }}>
-            成長の記録
-          </h2>
+        <section style={{ paddingBottom: 24, padding: '0 16px 24px' }}>
+          {/* S3-F7: 見出し「成長タイムライン」+ 枚数/期間 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>成長タイムライン</h2>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+              {timelineEntries.length}枚 · {monthSpan(timelineEntries)}ヶ月
+            </span>
+          </div>
           {timelineEntries.length === 0 ? (
             <EmptyTimeline onAdd={() => navigate(`/bonsai/${bonsai.id}/photo`)} />
           ) : (

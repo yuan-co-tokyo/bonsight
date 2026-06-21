@@ -5,7 +5,7 @@ export interface TimelineEntryStub {
   photoUrl: null; // 写真未結線
   note: string;
   takenAt: string; // ISO date
-  aiDiagnosis: null; // AI未結線
+  aiDiagnosis: string | null; // AI未結線
 }
 export const STUB_TIMELINE: TimelineEntryStub[] = [
   { id: 't1', bonsaiId: 'b1', photoUrl: null, note: '芽摘み実施。新芽が勢いよく伸びていた。',

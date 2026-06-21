@@ -41,6 +41,7 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button
+      data-variant={variant}
       {...props}
       style={{
         display: 'inline-flex',
