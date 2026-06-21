@@ -61,13 +61,14 @@ export default function S7Viewer() {
           style={{
             width: 40, height: 40, borderRadius: 20,
             background: 'rgba(0,0,0,0.4)', border: 'none',
-            color: '#EDEBE6', cursor: 'pointer',
+            cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18,
           }}
           aria-label="閉じる"
         >
-          ✕
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EDEBE6" strokeWidth="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
         </button>
         <span style={{ fontSize: 14, fontWeight: 500, color: '#EDEBE6' }}>
           {currentIndex + 1} / {entries.length}
@@ -76,12 +77,14 @@ export default function S7Viewer() {
           style={{
             width: 40, height: 40, borderRadius: 20,
             background: 'rgba(0,0,0,0.4)', border: 'none',
-            color: '#EDEBE6', cursor: 'pointer',
-            fontSize: 16,
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           aria-label="共有"
         >
-          ↑
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EDEBE6" strokeWidth="2.5">
+            <path d="M12 3v13M5 10l7-7 7 7"/><path d="M5 20h14"/>
+          </svg>
         </button>
       </div>
 
@@ -106,12 +109,14 @@ export default function S7Viewer() {
               position: 'absolute', left: 12,
               width: 40, height: 40, borderRadius: 20,
               background: 'rgba(0,0,0,0.4)', border: 'none',
-              color: '#EDEBE6', cursor: 'pointer',
-              fontSize: 22, zIndex: 5,
+              cursor: 'pointer',
+              zIndex: 5,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            ‹
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EDEBE6" strokeWidth="2.5">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
           </button>
         )}
         {currentIndex < entries.length - 1 && (
@@ -122,12 +127,14 @@ export default function S7Viewer() {
               position: 'absolute', right: 12,
               width: 40, height: 40, borderRadius: 20,
               background: 'rgba(0,0,0,0.4)', border: 'none',
-              color: '#EDEBE6', cursor: 'pointer',
-              fontSize: 22, zIndex: 5,
+              cursor: 'pointer',
+              zIndex: 5,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            ›
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EDEBE6" strokeWidth="2.5">
+              <path d="M9 6l6 6-6 6"/>
+            </svg>
           </button>
         )}
       </div>

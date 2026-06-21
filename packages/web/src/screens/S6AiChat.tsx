@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
 import { STUB_CHAT_MESSAGES, STUB_CONTEXT, type ChatMessage } from '../stubs/stubChat'
@@ -31,18 +32,11 @@ function CameraSmallIcon() {
 
 function AiBubble({ msg }: { msg: ChatMessage }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+    <div style={{ display: 'flex', maxWidth: '82%' }}>
       <div style={{
-        width: 28, height: 28, borderRadius: '50%',
-        background: '#EDEBE6', flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <SparkleIconGold />
-      </div>
-      <div style={{
-        background: '#fff', border: '1px solid #EDEBE6',
+        background: '#fff', border: '1px solid var(--color-border)',
         borderRadius: '14px 14px 14px 4px',
-        padding: '12px 14px', maxWidth: '82%',
+        padding: '12px 14px',
         fontSize: 13, lineHeight: 1.65, color: 'var(--color-ink)',
         whiteSpace: 'pre-wrap',
       }}>
@@ -109,6 +103,7 @@ function TypingIndicator() {
 }
 
 export default function S6AiChat() {
+  const navigate = useNavigate()
   const [messages, setMessages] = useState<ChatMessage[]>(STUB_CHAT_MESSAGES)
   const [inputText, setInputText] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -144,7 +139,16 @@ export default function S6AiChat() {
   }
 
   return (
-    <BonsightShell screen="S6" showTabBar activeTab="ai">
+    <BonsightShell
+      screen="S6"
+      showTabBar={true}
+      activeTab="ai"
+      leftAction="back"
+      onBack={() => navigate(-1)}
+      title="AI相談"
+      titleIcon="sparkle"
+      showAvatar={false}
+    >
       <div className="s6-chat" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         {/* 文脈チップ行 */}
         <div

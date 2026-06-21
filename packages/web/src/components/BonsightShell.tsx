@@ -8,12 +8,14 @@ interface BonsightShellProps {
   screen: ScreenKey
   children: ReactNode
   title?: string
+  titleIcon?: 'sparkle'
   onBack?: () => void
   contextAction?: { label: string; onClick: () => void }
   showTabBar?: boolean
   activeTab?: 'home' | 'ai' | 'settings'
   leftAction?: 'back' | 'cancel'
   leftLabel?: string
+  showAvatar?: boolean
 }
 
 function HomeIcon({ active }: { active: boolean }) {
@@ -70,12 +72,14 @@ export default function BonsightShell({
   screen,
   children,
   title,
+  titleIcon,
   onBack,
   contextAction,
   showTabBar = false,
   activeTab = 'home',
   leftAction,
   leftLabel,
+  showAvatar = true,
 }: BonsightShellProps) {
   const navigate = useNavigate()
 
@@ -116,8 +120,16 @@ export default function BonsightShell({
           position: 'relative',
         }}
       >
-        {showTabBar ? (
-          /* ルート画面: ロゴ + wordmark */
+        {/* 左側 */}
+        {showTabBar && title && leftAction === 'back' ? (
+          <button
+            onClick={handleBack}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+            aria-label="戻る"
+          >
+            <ChevronLeft />
+          </button>
+        ) : showTabBar ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <BonsightLogo size={24} />
             <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-ink)' }}>
@@ -125,35 +137,16 @@ export default function BonsightShell({
             </span>
           </div>
         ) : leftAction === 'cancel' ? (
-          /* キャンセルボタン */
           <button
             onClick={handleBack}
-            style={{
-              fontSize: 13.5,
-              color: '#777067',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-family)',
-            }}
+            style={{ fontSize: 13.5, color: '#777067', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-family)' }}
           >
             {leftLabel ?? 'キャンセル'}
           </button>
         ) : (
-          /* push画面: 戻る + タイトル */
           <button
             onClick={handleBack}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              color: 'var(--color-ink)',
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--color-ink)' }}
             aria-label="戻る"
           >
             <ChevronLeft />
@@ -163,6 +156,24 @@ export default function BonsightShell({
               </span>
             )}
           </button>
+        )}
+
+        {/* showTabBar+title: 中央タイトル */}
+        {showTabBar && title && (
+          <span
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 17, fontWeight: 600, color: 'var(--color-ink)',
+              position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+            }}
+          >
+            {title}
+            {titleIcon === 'sparkle' && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#B0863F">
+                <path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3L12 17l-6.2 4 2.4-7.3L2 9.2h7.6z"/>
+              </svg>
+            )}
+          </span>
         )}
 
         {/* キャンセルモード時の中央タイトル */}
@@ -182,8 +193,16 @@ export default function BonsightShell({
         )}
 
         {/* 右側 */}
-        {showTabBar ? (
-          /* アバター */
+        {showTabBar && title ? (
+          contextAction ? (
+            <button
+              onClick={contextAction.onClick}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--color-accent)', padding: 0, fontFamily: 'var(--font-family)' }}
+            >
+              {contextAction.label}
+            </button>
+          ) : null
+        ) : showTabBar && showAvatar ? (
           <div
             style={{
               width: 34,
@@ -203,16 +222,7 @@ export default function BonsightShell({
         ) : contextAction ? (
           <button
             onClick={contextAction.onClick}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: 'var(--color-accent)',
-              padding: 0,
-              fontFamily: 'var(--font-family)',
-            }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--color-accent)', padding: 0, fontFamily: 'var(--font-family)' }}
           >
             {contextAction.label}
           </button>

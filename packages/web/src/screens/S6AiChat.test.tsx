@@ -23,6 +23,12 @@ describe('S6AiChat', () => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn()
   })
 
+  it('トップバーに「AI相談」タイトルが表示される', () => {
+    renderS6()
+    const items = screen.getAllByText('AI相談')
+    expect(items.length).toBeGreaterThanOrEqual(1)
+  })
+
   it('文脈チップ行に「五葉松「翁」」が表示される', () => {
     renderS6()
     expect(screen.getByText('五葉松「翁」')).toBeInTheDocument()
