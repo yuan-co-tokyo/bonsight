@@ -12,6 +12,8 @@ interface BonsightShellProps {
   contextAction?: { label: string; onClick: () => void }
   showTabBar?: boolean
   activeTab?: 'home' | 'ai' | 'settings'
+  leftAction?: 'back' | 'cancel'
+  leftLabel?: string
 }
 
 function HomeIcon({ active }: { active: boolean }) {
@@ -72,6 +74,8 @@ export default function BonsightShell({
   contextAction,
   showTabBar = false,
   activeTab = 'home',
+  leftAction,
+  leftLabel,
 }: BonsightShellProps) {
   const navigate = useNavigate()
 
@@ -109,6 +113,7 @@ export default function BonsightShell({
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
+          position: 'relative',
         }}
       >
         {showTabBar ? (
@@ -119,6 +124,22 @@ export default function BonsightShell({
               bonsight
             </span>
           </div>
+        ) : leftAction === 'cancel' ? (
+          /* キャンセルボタン */
+          <button
+            onClick={handleBack}
+            style={{
+              fontSize: 13.5,
+              color: '#777067',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-family)',
+            }}
+          >
+            {leftLabel ?? 'キャンセル'}
+          </button>
         ) : (
           /* push画面: 戻る + タイトル */
           <button
@@ -142,6 +163,22 @@ export default function BonsightShell({
               </span>
             )}
           </button>
+        )}
+
+        {/* キャンセルモード時の中央タイトル */}
+        {!showTabBar && leftAction === 'cancel' && title && (
+          <span
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-ink)',
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}
+          >
+            {title}
+          </span>
         )}
 
         {/* 右側 */}

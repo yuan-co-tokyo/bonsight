@@ -92,13 +92,13 @@ export default function S8Settings() {
               width: 48,
               height: 48,
               borderRadius: '50%',
-              background: 'var(--color-accent-light)',
+              background: '#EEF2EC',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 18,
               fontWeight: 700,
-              color: '#FFFFFF',
+              color: 'var(--color-accent)',
               flexShrink: 0,
             }}
           >

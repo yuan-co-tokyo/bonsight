@@ -26,19 +26,38 @@ describe('S0Landing', () => {
     expect(screen.getByText('bonsight')).toBeInTheDocument()
   })
 
-  it('「はじめる」ボタンが存在しクリックでナビゲーション', async () => {
+  it('タグライン「AIが見守る、あなたの盆栽」が表示される(S0-H1)', () => {
+    renderS0Landing()
+    expect(screen.getByText('AIが見守る、あなたの盆栽')).toBeInTheDocument()
+  })
+
+  it('特徴3点の見出しが存在する(S0-H2)', () => {
+    renderS0Landing()
+    expect(screen.getByText('写真で残す')).toBeInTheDocument()
+    expect(screen.getByText('AIが診る')).toBeInTheDocument()
+    expect(screen.getByText('成長タイムライン')).toBeInTheDocument()
+  })
+
+  it('「ログイン」ボタン(Primary)が存在しクリックでナビゲーション(S0-H3)', async () => {
     const user = userEvent.setup()
     renderS0Landing()
-    const btn = screen.getByRole('button', { name: 'はじめる' })
+    const btn = screen.getByRole('button', { name: 'ログイン' })
     expect(btn).toBeInTheDocument()
     await user.click(btn)
     expect(mockNavigate).toHaveBeenCalledWith('/home')
   })
 
-  it('特徴3点のテキストが存在する', () => {
+  it('「新規登録」ボタン(Secondary)が存在しクリックでナビゲーション(S0-H3)', async () => {
+    const user = userEvent.setup()
     renderS0Landing()
-    expect(screen.getByText('カルテで盆栽を一元管理')).toBeInTheDocument()
-    expect(screen.getByText('写真で成長タイムラインを記録')).toBeInTheDocument()
-    expect(screen.getByText('AIが樹木の状態を診断・アドバイス')).toBeInTheDocument()
+    const btn = screen.getByRole('button', { name: '新規登録' })
+    expect(btn).toBeInTheDocument()
+    await user.click(btn)
+    expect(mockNavigate).toHaveBeenCalledWith('/home')
+  })
+
+  it('認証注記テキストが存在する(S0-M1)', () => {
+    renderS0Landing()
+    expect(screen.getByText('ログイン・新規登録は安全な認証画面へ移動します')).toBeInTheDocument()
   })
 })
