@@ -1,0 +1,240 @@
+{
+  "/BonsightMediaStack": [
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "<anonymous> (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/bin/infrastructure.ts:6:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/BonsightMediaStack/BonsightMediaBucket": [
+    {
+      "type": "aws:cdk:analytics:construct",
+      "data": {
+        "bucketName": "*",
+        "versioned": false,
+        "removalPolicy": "retain",
+        "cors": [
+          {
+            "allowedOrigins": "*",
+            "allowedMethods": [
+              "GET",
+              "PUT",
+              "POST",
+              "HEAD"
+            ],
+            "allowedHeaders": "*",
+            "maxAge": "*"
+          }
+        ],
+        "blockPublicAccess": "*"
+      }
+    },
+    {
+      "type": "aws:cdk:analytics:method",
+      "data": {
+        "addCorsRule": [
+          {
+            "allowedOrigins": "*",
+            "allowedMethods": [
+              "GET",
+              "PUT",
+              "POST",
+              "HEAD"
+            ],
+            "allowedHeaders": "*",
+            "maxAge": "*"
+          },
+          "*",
+          "*"
+        ]
+      }
+    }
+  ],
+  "/BonsightMediaStack/MediaOAC": [
+    {
+      "type": "aws:cdk:analytics:construct",
+      "data": {
+        "description": "*"
+      }
+    }
+  ],
+  "/BonsightMediaStack/BonsightMediaDistribution": [
+    {
+      "type": "aws:cdk:analytics:construct",
+      "data": {
+        "defaultBehavior": {
+          "origin": "*",
+          "viewerProtocolPolicy": "redirect-to-https",
+          "cachePolicy": "*",
+          "allowedMethods": "*"
+        },
+        "additionalBehaviors": "*",
+        "priceClass": "PriceClass_100",
+        "comment": "*"
+      }
+    },
+    {
+      "type": "aws:cdk:analytics:method",
+      "data": {
+        "addBehavior": [
+          "*",
+          {},
+          {
+            "viewerProtocolPolicy": "redirect-to-https",
+            "cachePolicy": "*",
+            "allowedMethods": "*"
+          }
+        ]
+      }
+    }
+  ],
+  "/BonsightMediaStack/BucketName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BucketName"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new BonsightMediaStack (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/lib/bonsight-media-stack.ts:81:5)",
+        "<anonymous> (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/bin/infrastructure.ts:6:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/BonsightMediaStack/CloudFrontDomain": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CloudFrontDomain"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new BonsightMediaStack (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/lib/bonsight-media-stack.ts:85:5)",
+        "<anonymous> (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/bin/infrastructure.ts:6:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/BonsightMediaStack/CloudFrontDistributionId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CloudFrontDistributionId"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new BonsightMediaStack (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/lib/bonsight-media-stack.ts:89:5)",
+        "<anonymous> (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/bin/infrastructure.ts:6:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/BonsightMediaStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/BonsightMediaStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/BonsightMediaStack/BonsightMediaBucket/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BonsightMediaBucketC04B6B99"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Bucket2 in aws-cdk-lib...",
+        "new BonsightMediaStack (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/lib/bonsight-media-stack.ts:16:19)",
+        "<anonymous> (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/bin/infrastructure.ts:6:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/BonsightMediaStack/BonsightMediaBucket/Policy": [
+    {
+      "type": "aws:cdk:analytics:construct",
+      "data": {
+        "bucket": "*"
+      }
+    }
+  ],
+  "/BonsightMediaStack/MediaOAC/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "MediaOACC4276BB0"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new S3OriginAccessControl2 in aws-cdk-lib...",
+        "new BonsightMediaStack (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/lib/bonsight-media-stack.ts:37:17)",
+        "<anonymous> (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/bin/infrastructure.ts:6:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/BonsightMediaStack/BonsightMediaDistribution/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BonsightMediaDistributionA5A56944"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Distribution2 in aws-cdk-lib...",
+        "new BonsightMediaStack (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/lib/bonsight-media-stack.ts:42:25)",
+        "<anonymous> (/Users/takahiro/Documents/codex_projects/bonsight/infrastructure/bin/infrastructure.ts:6:1)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/BonsightMediaStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib, node internals...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/BonsightMediaStack/BonsightMediaBucket/Policy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BonsightMediaBucketPolicy3F6305B2"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,311 @@
+{
+ "Resources": {
+  "BonsightMediaBucketC04B6B99": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketName": "bonsight-dev-media",
+    "CorsConfiguration": {
+     "CorsRules": [
+      {
+       "AllowedHeaders": [
+        "*"
+       ],
+       "AllowedMethods": [
+        "GET",
+        "PUT",
+        "POST",
+        "HEAD"
+       ],
+       "AllowedOrigins": [
+        "http://localhost:5173",
+        "http://localhost:8080"
+       ],
+       "MaxAge": 3000
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "BonsightMediaStack/BonsightMediaBucket/Resource"
+   }
+  },
+  "BonsightMediaBucketPolicy3F6305B2": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "BonsightMediaBucketC04B6B99"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "s3:GetObject",
+       "Condition": {
+        "StringEquals": {
+         "AWS:SourceArn": {
+          "Fn::Join": [
+           "",
+           [
+            "arn:",
+            {
+             "Ref": "AWS::Partition"
+            },
+            ":cloudfront::",
+            {
+             "Ref": "AWS::AccountId"
+            },
+            ":distribution/",
+            {
+             "Ref": "BonsightMediaDistributionA5A56944"
+            }
+           ]
+          ]
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetAtt": [
+            "BonsightMediaBucketC04B6B99",
+            "Arn"
+           ]
+          },
+          "/*"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "s3:GetObject",
+       "Condition": {
+        "StringEquals": {
+         "AWS:SourceArn": {
+          "Fn::Join": [
+           "",
+           [
+            "arn:aws:cloudfront::",
+            {
+             "Ref": "AWS::AccountId"
+            },
+            ":distribution/",
+            {
+             "Ref": "BonsightMediaDistributionA5A56944"
+            }
+           ]
+          ]
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetAtt": [
+            "BonsightMediaBucketC04B6B99",
+            "Arn"
+           ]
+          },
+          "/*"
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "BonsightMediaStack/BonsightMediaBucket/Policy/Resource"
+   }
+  },
+  "MediaOACC4276BB0": {
+   "Type": "AWS::CloudFront::OriginAccessControl",
+   "Properties": {
+    "OriginAccessControlConfig": {
+     "Description": "OAC for Bonsight media bucket",
+     "Name": "BonsightMediaStackMediaOACB8E4479B",
+     "OriginAccessControlOriginType": "s3",
+     "SigningBehavior": "always",
+     "SigningProtocol": "sigv4"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "BonsightMediaStack/MediaOAC/Resource"
+   }
+  },
+  "BonsightMediaDistributionA5A56944": {
+   "Type": "AWS::CloudFront::Distribution",
+   "Properties": {
+    "DistributionConfig": {
+     "CacheBehaviors": [
+      {
+       "AllowedMethods": [
+        "GET",
+        "HEAD",
+        "OPTIONS",
+        "PUT",
+        "PATCH",
+        "POST",
+        "DELETE"
+       ],
+       "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+       "Compress": true,
+       "PathPattern": "/upload/*",
+       "TargetOriginId": "BonsightMediaStackBonsightMediaDistributionOrigin2265D85D1",
+       "ViewerProtocolPolicy": "redirect-to-https"
+      }
+     ],
+     "Comment": "Bonsight Phase1 Media Distribution",
+     "DefaultCacheBehavior": {
+      "AllowedMethods": [
+       "GET",
+       "HEAD"
+      ],
+      "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+      "Compress": true,
+      "TargetOriginId": "BonsightMediaStackBonsightMediaDistributionOrigin1996131BF",
+      "ViewerProtocolPolicy": "redirect-to-https"
+     },
+     "Enabled": true,
+     "HttpVersion": "http2",
+     "IPV6Enabled": true,
+     "Origins": [
+      {
+       "DomainName": {
+        "Fn::GetAtt": [
+         "BonsightMediaBucketC04B6B99",
+         "RegionalDomainName"
+        ]
+       },
+       "Id": "BonsightMediaStackBonsightMediaDistributionOrigin1996131BF",
+       "OriginAccessControlId": {
+        "Fn::GetAtt": [
+         "MediaOACC4276BB0",
+         "Id"
+        ]
+       },
+       "S3OriginConfig": {
+        "OriginAccessIdentity": ""
+       }
+      },
+      {
+       "DomainName": {
+        "Fn::GetAtt": [
+         "BonsightMediaBucketC04B6B99",
+         "RegionalDomainName"
+        ]
+       },
+       "Id": "BonsightMediaStackBonsightMediaDistributionOrigin2265D85D1",
+       "OriginAccessControlId": {
+        "Fn::GetAtt": [
+         "MediaOACC4276BB0",
+         "Id"
+        ]
+       },
+       "S3OriginConfig": {
+        "OriginAccessIdentity": ""
+       }
+      }
+     ],
+     "PriceClass": "PriceClass_100"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "BonsightMediaStack/BonsightMediaDistribution/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/71TTU/rMBD8LfiInFAK4tBbKehxeRDxcUKocuwtXepkK3vdgqL8d5y4CT1wfHqXOJmMZ8czyTSfXk3yyYna+0ybTWaxzJsnVnojI7Rs/EXeXAe9AX5tRNnf3KsKxEycCil24DxSDUbMVsp6kMJBRTtlC7KovyLLASusI1WT82IWRZS1tAfz4PAda38QOoB/gddkOp74c/sc8eKlvz48dcvd7fxGvI3kO1AG3KBQqc/5e/LVRk5pSW+KUEYbc63BJ1or43xjFtHLY7Dwv/zIHjkVb9HZYlWnPGVaUlJjuMMBRlp630ptKZiVo5pjPxfJbTrZImKObJQw4LXDLcdKjnR+4cob9OywDB2137hSwfI1rNUOyYlZI6jfNfSMsAdXOGLSdFyuQQeaM6Zszbz1Xc9Kr2Fk/JZlSiTWgN10ZYepQ3JbhxoWVvWdFePD8nwy6b+jqoKaj+v8sf3aCTQd/M8dH7o7Dq5t+3gDbwO3siYD+Yc/200v8/Pul/rwiJkLNWMF+WNavwG1xS/EbwMAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "BonsightMediaStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "BucketName": {
+   "Description": "S3バケット名（.envのS3_BUCKET_NAMEに設定）",
+   "Value": {
+    "Ref": "BonsightMediaBucketC04B6B99"
+   }
+  },
+  "CloudFrontDomain": {
+   "Description": "CloudFrontドメイン（.envのCLOUDFRONT_DOMAINに設定）",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Fn::GetAtt": [
+        "BonsightMediaDistributionA5A56944",
+        "DomainName"
+       ]
+      }
+     ]
+    ]
+   }
+  },
+  "CloudFrontDistributionId": {
+   "Description": "CloudFront DistributionID（キャッシュ無効化に使用）",
+   "Value": {
+    "Ref": "BonsightMediaDistributionA5A56944"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
