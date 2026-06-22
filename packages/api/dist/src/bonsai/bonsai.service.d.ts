@@ -1,25 +1,97 @@
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateBonsaiDto } from './dto/create-bonsai.dto';
 import { UpdateBonsaiDto } from './dto/update-bonsai.dto';
 export declare class BonsaiService {
-    getBonsais(): never[];
-    getBonsai(id: string): {
+    private readonly prisma;
+    constructor(prisma: PrismaService);
+    getBonsais(): Promise<{
         id: string;
-    };
-    createBonsai(createBonsaiDto: CreateBonsaiDto): CreateBonsaiDto;
-    updateBonsai(id: string, updateBonsaiDto: UpdateBonsaiDto): {
-        name?: string;
-        nickname?: string;
-        species?: string;
-        acquiredAt?: string;
-        estimatedAge?: number;
-        origin?: string;
-        potInfo?: string;
-        style?: string;
-        currentState?: string;
+        createdAt: Date;
+        updatedAt: Date;
+        owner: string;
+        visibility: import("../../generated/prisma/enums").BonsaiVisibility;
+        name: string;
+        nickname: string | null;
+        species: string | null;
+        acquiredAt: Date | null;
+        estimatedAge: number | null;
+        origin: string | null;
+        potInfo: string | null;
+        style: string | null;
+        currentState: string | null;
+        coverImageKey: string | null;
+        userId: string | null;
+    }[]>;
+    getBonsai(id: string): Promise<{
         id: string;
-    };
-    deleteBonsai(id: string): {
+        createdAt: Date;
+        updatedAt: Date;
+        owner: string;
+        visibility: import("../../generated/prisma/enums").BonsaiVisibility;
+        name: string;
+        nickname: string | null;
+        species: string | null;
+        acquiredAt: Date | null;
+        estimatedAge: number | null;
+        origin: string | null;
+        potInfo: string | null;
+        style: string | null;
+        currentState: string | null;
+        coverImageKey: string | null;
+        userId: string | null;
+    }>;
+    createBonsai(createBonsaiDto: CreateBonsaiDto): Promise<{
         id: string;
-        deleted: boolean;
-    };
+        createdAt: Date;
+        updatedAt: Date;
+        owner: string;
+        visibility: import("../../generated/prisma/enums").BonsaiVisibility;
+        name: string;
+        nickname: string | null;
+        species: string | null;
+        acquiredAt: Date | null;
+        estimatedAge: number | null;
+        origin: string | null;
+        potInfo: string | null;
+        style: string | null;
+        currentState: string | null;
+        coverImageKey: string | null;
+        userId: string | null;
+    }>;
+    updateBonsai(id: string, updateBonsaiDto: UpdateBonsaiDto): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        owner: string;
+        visibility: import("../../generated/prisma/enums").BonsaiVisibility;
+        name: string;
+        nickname: string | null;
+        species: string | null;
+        acquiredAt: Date | null;
+        estimatedAge: number | null;
+        origin: string | null;
+        potInfo: string | null;
+        style: string | null;
+        currentState: string | null;
+        coverImageKey: string | null;
+        userId: string | null;
+    }>;
+    deleteBonsai(id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        owner: string;
+        visibility: import("../../generated/prisma/enums").BonsaiVisibility;
+        name: string;
+        nickname: string | null;
+        species: string | null;
+        acquiredAt: Date | null;
+        estimatedAge: number | null;
+        origin: string | null;
+        potInfo: string | null;
+        style: string | null;
+        currentState: string | null;
+        coverImageKey: string | null;
+        userId: string | null;
+    }>;
 }
