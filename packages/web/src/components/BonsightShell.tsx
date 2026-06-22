@@ -10,7 +10,7 @@ interface BonsightShellProps {
   title?: string
   titleIcon?: 'sparkle'
   onBack?: () => void
-  contextAction?: { label: string; onClick: () => void }
+  contextAction?: { label: string; onClick: () => void; disabled?: boolean }
   showTabBar?: boolean
   activeTab?: 'home' | 'ai' | 'settings'
   leftAction?: 'back' | 'cancel'
@@ -197,7 +197,8 @@ export default function BonsightShell({
           contextAction ? (
             <button
               onClick={contextAction.onClick}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--color-accent)', padding: 0, fontFamily: 'var(--font-family)' }}
+              disabled={contextAction.disabled}
+              style={{ background: 'none', border: 'none', cursor: contextAction.disabled ? 'not-allowed' : 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--color-accent)', opacity: contextAction.disabled ? 0.55 : 1, padding: 0, fontFamily: 'var(--font-family)' }}
             >
               {contextAction.label}
             </button>
@@ -222,7 +223,8 @@ export default function BonsightShell({
         ) : contextAction ? (
           <button
             onClick={contextAction.onClick}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--color-accent)', padding: 0, fontFamily: 'var(--font-family)' }}
+            disabled={contextAction.disabled}
+            style={{ background: 'none', border: 'none', cursor: contextAction.disabled ? 'not-allowed' : 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--color-accent)', opacity: contextAction.disabled ? 0.55 : 1, padding: 0, fontFamily: 'var(--font-family)' }}
           >
             {contextAction.label}
           </button>
