@@ -1,7 +1,20 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import type { BonsaiDto } from 'shared'
+import { getBonsais } from '../api/bonsaiApi'
 import BonsightShell from '../components/BonsightShell'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
-import { STUB_BONSAI_LIST, type BonsaiStub } from '../stubs/stubBonsai'
+import type { BonsaiStub } from '../stubs/stubBonsai'
+
+type BonsaiCardModel = {
+  id: string
+  name: string
+  speciesLabel: string
+  ageLabel: string
+  styleLabel: string
+  acquiredLabel: string
+  updatedAt: string
+}
 
 function PlusIcon() {
   return (
@@ -23,7 +36,31 @@ function formatRelative(dateStr: string): string {
   return `${date.getMonth() + 1}月${date.getDate()}日に更新`
 }
 
-function BonsaiCard({ bonsai, onClick }: { bonsai: BonsaiStub; onClick: () => void }) {
+function toCardModel(bonsai: BonsaiDto | BonsaiStub): BonsaiCardModel {
+  if ('speciesJa' in bonsai) {
+    return {
+      id: bonsai.id,
+      name: bonsai.name,
+      speciesLabel: bonsai.speciesJa,
+      ageLabel: bonsai.treeAge,
+      styleLabel: bonsai.style,
+      acquiredLabel: bonsai.acquiredAt,
+      updatedAt: bonsai.updatedAt,
+    }
+  }
+
+  return {
+    id: bonsai.id,
+    name: bonsai.nickname ? `${bonsai.name}「${bonsai.nickname}」` : bonsai.name,
+    speciesLabel: bonsai.species ?? '樹種未設定',
+    ageLabel: bonsai.estimatedAge !== undefined ? `約${bonsai.estimatedAge}年` : '樹齢未設定',
+    styleLabel: bonsai.style ?? '樹形未設定',
+    acquiredLabel: bonsai.acquiredAt ?? '入手日未設定',
+    updatedAt: bonsai.updatedAt,
+  }
+}
+
+function BonsaiCard({ bonsai, onClick }: { bonsai: BonsaiCardModel; onClick: () => void }) {
   return (
     <div
       role="button"
@@ -39,14 +76,14 @@ function BonsaiCard({ bonsai, onClick }: { bonsai: BonsaiStub; onClick: () => vo
       }}
       aria-label={bonsai.name}
     >
-      <PhotoPlaceholder label={bonsai.speciesJa} aspectRatio="1/1" />
+      <PhotoPlaceholder label={bonsai.speciesLabel} aspectRatio="1/1" />
       {/* S1-F2: 健康バッジ除去、相対日付表示 */}
       <div className="s3-card-body" style={{ padding: '10px 12px 12px' }}>
         <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-ink)', margin: '0 0 2px' }}>
           {bonsai.name}
         </p>
         <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', margin: '0 0 6px' }}>
-          {bonsai.speciesJa}
+          {bonsai.speciesLabel}
         </p>
         <p style={{ fontSize: 10.5, color: 'var(--color-text-tertiary)', margin: 0 }}>
           {formatRelative(bonsai.updatedAt)}
@@ -102,7 +139,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         <path d="M12 3C7 8 7 16 12 21C17 16 17 8 12 3Z" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="1.6" />
         <circle cx="12" cy="12" r="2.4" fill="var(--color-accent)" />
       </svg>
-      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>まだ盆栽がありません</p>
+      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>盆栽がまだ登録されていません</p>
       <button
         onClick={onAdd}
         style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -113,8 +150,53 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   )
 }
 
-export default function S1Home({ bonsaiList = STUB_BONSAI_LIST }: { bonsaiList?: BonsaiStub[] }) {
+function LoadingState() {
+  return (
+    <div style={{ padding: '48px 24px', textAlign: 'center', fontSize: 14, color: 'var(--color-text-secondary)' }}>
+      読み込み中...
+    </div>
+  )
+}
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px', gap: 14 }}>
+      <p style={{ fontSize: 14, color: 'var(--status-danger-text)', margin: 0 }}>データの読み込みに失敗しました</p>
+      <button
+        onClick={onRetry}
+        style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+      >
+        再試行
+      </button>
+    </div>
+  )
+}
+
+export default function S1Home({ bonsaiList }: { bonsaiList?: BonsaiStub[] }) {
   const navigate = useNavigate()
+  const [bonsais, setBonsais] = useState<BonsaiDto[]>([])
+  const [loading, setLoading] = useState(bonsaiList === undefined)
+  const [error, setError] = useState(false)
+
+  async function loadBonsais() {
+    setLoading(true)
+    setError(false)
+    try {
+      setBonsais(await getBonsais())
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (bonsaiList === undefined) {
+      void loadBonsais()
+    }
+  }, [bonsaiList])
+
+  const displayBonsais = (bonsaiList ?? bonsais).map(toCardModel)
 
   return (
     <BonsightShell screen="S1" showTabBar activeTab="home">
@@ -125,15 +207,19 @@ export default function S1Home({ bonsaiList = STUB_BONSAI_LIST }: { bonsaiList?:
             マイ盆栽
           </h1>
           <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-            {bonsaiList.length}本
+            {displayBonsais.length}本
           </span>
         </div>
-        {bonsaiList.length === 0 ? (
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState onRetry={loadBonsais} />
+        ) : displayBonsais.length === 0 ? (
           <EmptyState onAdd={() => navigate('/bonsai/new')} />
         ) : (
           // S1-F4: gap 12→15
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15, padding: '0 16px 16px' }}>
-            {bonsaiList.map(b => (
+            {displayBonsais.map(b => (
               <BonsaiCard key={b.id} bonsai={b} onClick={() => navigate(`/bonsai/${b.id}`)} />
             ))}
             <AddBonsaiCard onClick={() => navigate('/bonsai/new')} />

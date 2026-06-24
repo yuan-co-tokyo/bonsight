@@ -4,8 +4,16 @@ import { BonsaiModule } from './bonsai/bonsai.module';
 import { ChatModule } from './chat/chat.module';
 import { MeModule } from './me/me.module';
 import { MediaModule } from './media/media.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [BonsaiModule, MediaModule, AdviceModule, ChatModule, MeModule],
+  imports: [
+    PrismaModule,
+    BonsaiModule,
+    MediaModule,
+    AdviceModule,
+    ChatModule,
+    MeModule,
+  ],
 })
 export class AppModule {}

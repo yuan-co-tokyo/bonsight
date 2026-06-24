@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import type { BonsaiDto } from 'shared'
+import { getBonsai } from '../api/bonsaiApi'
 import BonsightShell from '../components/BonsightShell'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
 import Button from '../components/Button'
 import AIBadge from '../components/AIBadge'
-import { STUB_BONSAI_LIST } from '../stubs/stubBonsai'
 import { STUB_TIMELINE, type TimelineEntryStub } from '../stubs/stubTimeline'
 
 function CalendarIcon() {
@@ -90,6 +91,30 @@ function monthSpan(entries: TimelineEntryStub[]): string {
   return String(Math.max(months, 1))
 }
 
+function displayName(bonsai: BonsaiDto): string {
+  return bonsai.nickname ? `${bonsai.name}「${bonsai.nickname}」` : bonsai.name
+}
+
+function displayAge(bonsai: BonsaiDto): string {
+  return bonsai.estimatedAge !== undefined ? `約${bonsai.estimatedAge}年` : '樹齢未設定'
+}
+
+function LoadingState() {
+  return (
+    <div style={{ padding: 24, fontSize: 14, color: 'var(--color-text-secondary)' }}>
+      読み込み中...
+    </div>
+  )
+}
+
+function NotFoundState() {
+  return (
+    <div style={{ padding: 24, fontSize: 14, color: 'var(--status-danger-text)' }}>
+      盆栽が見つかりません
+    </div>
+  )
+}
+
 function TimelineCard({ entry }: { entry: TimelineEntryStub }) {
   return (
     <div style={{
@@ -148,8 +173,54 @@ function EmptyTimeline({ onAdd }: { onAdd: () => void }) {
 export default function S3Detail() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const [bonsai, setBonsai] = useState<BonsaiDto | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-  const bonsai = STUB_BONSAI_LIST.find(b => b.id === id) ?? STUB_BONSAI_LIST[0]
+  useEffect(() => {
+    if (!id) {
+      setError(true)
+      setLoading(false)
+      return
+    }
+    const bonsaiId = id
+
+    let ignore = false
+    async function loadBonsai() {
+      setLoading(true)
+      setError(false)
+      try {
+        const data = await getBonsai(bonsaiId)
+        if (!ignore) setBonsai(data)
+      } catch {
+        if (!ignore) setError(true)
+      } finally {
+        if (!ignore) setLoading(false)
+      }
+    }
+
+    void loadBonsai()
+    return () => {
+      ignore = true
+    }
+  }, [id])
+
+  if (loading) {
+    return (
+      <BonsightShell screen="S3" showTabBar={false} title="読み込み中" onBack={() => navigate(-1)}>
+        <LoadingState />
+      </BonsightShell>
+    )
+  }
+
+  if (error || bonsai === null) {
+    return (
+      <BonsightShell screen="S3" showTabBar={false} title="詳細" onBack={() => navigate(-1)}>
+        <NotFoundState />
+      </BonsightShell>
+    )
+  }
+
   const timelineEntries = STUB_TIMELINE
     .filter(e => e.bonsaiId === bonsai.id)
     .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())
@@ -158,29 +229,29 @@ export default function S3Detail() {
     <BonsightShell
       screen="S3"
       showTabBar={false}
-      title={bonsai.name}
+      title={displayName(bonsai)}
       onBack={() => navigate(-1)}
       contextAction={{ label: '編集', onClick: () => navigate(`/bonsai/${bonsai.id}/edit`) }}
     >
       <article className="s3-detail">
         {/* S3-F8: hero aspect-ratio 5/4 */}
-        <PhotoPlaceholder className="s3-hero" label={bonsai.speciesJa} aspectRatio="5/4" />
+        <PhotoPlaceholder className="s3-hero" label={bonsai.species ?? '樹種未設定'} aspectRatio="5/4" />
 
         {/* S3-F3: 名前+樹種ブロック */}
         <div className="s3-bonsai-name-block" style={{ padding: '16px 16px 8px' }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-ink)', margin: 0 }}>
-            {bonsai.name}
+            {displayName(bonsai)}
           </h1>
           <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', margin: '2px 0 0' }}>
-            {bonsai.speciesJa}
+            {bonsai.species ?? '樹種未設定'}
           </p>
         </div>
 
         {/* S3-F4: チップを樹齢/樹形/入手に変更 */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 16px 16px' }}>
-          <Chip icon={<CalendarIcon />} label={bonsai.treeAge} />
-          <Chip icon={<TreeIcon />} label={bonsai.style} />
-          <Chip icon={<ShoppingBagIcon />} label={bonsai.acquiredAt} />
+          <Chip icon={<CalendarIcon />} label={displayAge(bonsai)} />
+          <Chip icon={<TreeIcon />} label={bonsai.style ?? '樹形未設定'} />
+          <Chip icon={<ShoppingBagIcon />} label={bonsai.acquiredAt ?? '入手日未設定'} />
         </div>
 
         {/* S3-F5: 写真を追加=primary, AIに診てもらう=secondary */}
@@ -194,6 +265,7 @@ export default function S3Detail() {
         </div>
 
         <section style={{ paddingBottom: 24, padding: '0 16px 24px' }}>
+          {/* TODO: 第四陣でmedia APIを結線。現在はスタブ表示 */}
           {/* S3-F7: 見出し「成長タイムライン」+ 枚数/期間 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
             <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>成長タイムライン</h2>

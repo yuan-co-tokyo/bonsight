@@ -1,5 +1,7 @@
-import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState, useRef } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import type { CreateBonsaiDto } from 'shared'
+import { createBonsai, getBonsai, updateBonsai } from '../api/bonsaiApi'
 import BonsightShell from '../components/BonsightShell'
 
 interface FormState {
@@ -42,6 +44,8 @@ const labelStyle: React.CSSProperties = {
 
 export default function S2Form() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
+  const isEditMode = id !== undefined
   const [form, setForm] = useState<FormState>({
     name: '',
     speciesJa: '',
@@ -51,18 +55,77 @@ export default function S2Form() {
     note: '',
   })
   const [nameError, setNameError] = useState(false)
+  const [loading, setLoading] = useState(isEditMode)
+  const [saving, setSaving] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [origin, setOrigin] = useState('')
   const [, setCoverFile] = useState<File | null>(null)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
-  function handleSave() {
+  useEffect(() => {
+    if (!id) return
+    const bonsaiId = id
+
+    let ignore = false
+    async function loadBonsai() {
+      setLoading(true)
+      setApiError(null)
+      try {
+        const bonsai = await getBonsai(bonsaiId)
+        if (ignore) return
+        setForm({
+          name: bonsai.name,
+          speciesJa: bonsai.species ?? '',
+          treeAge: bonsai.estimatedAge !== undefined ? String(bonsai.estimatedAge) : '',
+          style: bonsai.style ?? '',
+          acquiredAt: bonsai.acquiredAt ?? '',
+          note: bonsai.currentState ?? '',
+        })
+        setOrigin(bonsai.origin ?? '')
+      } catch {
+        if (!ignore) setApiError('データの読み込みに失敗しました')
+      } finally {
+        if (!ignore) setLoading(false)
+      }
+    }
+
+    void loadBonsai()
+    return () => {
+      ignore = true
+    }
+  }, [id])
+
+  function buildDto(): CreateBonsaiDto {
+    const age = Number.parseInt(form.treeAge, 10)
+    return {
+      name: form.name.trim(),
+      species: form.speciesJa.trim() || undefined,
+      estimatedAge: Number.isNaN(age) ? undefined : age,
+      style: form.style || undefined,
+      acquiredAt: form.acquiredAt || undefined,
+      origin: origin || undefined,
+      currentState: form.note.trim() || undefined,
+    }
+  }
+
+  async function handleSave() {
     if (!form.name.trim()) {
       setNameError(true)
       return
     }
-    // TODO: AWS結線後にAPIを呼び、成功時にS1へ遷移
-    navigate('/home')
+    setSaving(true)
+    setApiError(null)
+    try {
+      const saved = id
+        ? await updateBonsai(id, buildDto())
+        : await createBonsai(buildDto())
+      navigate(id ? `/bonsai/${id}` : `/bonsai/${saved.id}`)
+    } catch (e) {
+      setApiError(e instanceof Error ? e.message : '保存に失敗しました')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleChange(field: keyof FormState) {
@@ -82,10 +145,10 @@ export default function S2Form() {
     <BonsightShell
       screen="S2"
       showTabBar={false}
-      title="盆栽を登録"
+      title={isEditMode ? '盆栽を編集' : '盆栽を登録'}
       leftAction="cancel"
       onBack={() => navigate(-1)}
-      contextAction={{ label: '保存', onClick: handleSave }}
+      contextAction={{ label: saving ? '保存中...' : '保存', onClick: handleSave, disabled: saving || loading }}
     >
       <div
         style={{
@@ -95,6 +158,13 @@ export default function S2Form() {
           gap: 20,
         }}
       >
+        {loading && (
+          <div style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>読み込み中...</div>
+        )}
+        {apiError && (
+          <div role="alert" style={{ fontSize: 13, color: 'var(--status-danger-text)' }}>{apiError}</div>
+        )}
+
         {/* 表紙写真 (S2-H1) */}
         <div>
           <div
@@ -165,6 +235,11 @@ export default function S2Form() {
             aria-label="名前・愛称"
             style={nameFieldStyle}
           />
+          {nameError && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--status-danger-text)' }}>
+              名前・愛称を入力してください
+            </p>
+          )}
         </div>
 
         {/* 樹種 */}
