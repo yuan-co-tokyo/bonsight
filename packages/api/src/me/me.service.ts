@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 export class UpdateUserDto {
   displayName?: string;
@@ -8,13 +9,20 @@ export class UpdateUserDto {
 
 @Injectable()
 export class MeService {
-  getMe() {
-    // TODO: Cognito未結線
-    return null;
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getMe(sub: string) {
+    return this.prisma.user.upsert({
+      where: { cognitoSub: sub },
+      create: { cognitoSub: sub, displayName: '' },
+      update: {},
+    });
   }
 
-  updateMe(updateUserDto: UpdateUserDto) {
-    // TODO: Cognito未結線
-    return updateUserDto;
+  async updateMe(updateUserDto: UpdateUserDto, sub: string) {
+    return this.prisma.user.update({
+      where: { cognitoSub: sub },
+      data: updateUserDto,
+    });
   }
 }
