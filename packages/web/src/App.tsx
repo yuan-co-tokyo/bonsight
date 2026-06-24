@@ -62,9 +62,29 @@ export default function App() {
       })
       .catch(() => setAuthed(false))
 
-    const unsubscribe = Hub.listen('auth', (capsule) => {
-      if (capsule.payload.event === 'signedIn') setAuthed(true)
-      if (capsule.payload.event === 'signedOut') setAuthed(false)
+    const unsubscribe = Hub.listen('auth', async ({ payload }) => {
+      switch (payload.event) {
+        case 'signedIn':
+          setAuthed(true)
+          break
+        case 'signInWithRedirect':
+          try {
+            await fetchAuthSession()
+            setAuthed(true)
+            if (window.location.search.includes('code=')) {
+              window.history.replaceState({}, document.title, window.location.pathname)
+            }
+          } catch {
+            setAuthed(false)
+          }
+          break
+        case 'signInWithRedirect_failure':
+          setAuthed(false)
+          break
+        case 'signedOut':
+          setAuthed(false)
+          break
+      }
     })
 
     return unsubscribe
