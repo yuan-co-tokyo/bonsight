@@ -6,7 +6,7 @@ const API_BASE =
 async function getAuthHeader(): Promise<Record<string, string>> {
   try {
     const session = await fetchAuthSession()
-    const token = session.tokens?.idToken?.toString()
+    const token = session.tokens?.accessToken?.toString()
     if (token) return { Authorization: `Bearer ${token}` }
   } catch {
     // 未認証の場合はヘッダなしで続行

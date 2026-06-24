@@ -34,7 +34,7 @@ describe('apiFetch', () => {
   it('attaches Authorization header when authenticated', async () => {
     const { fetchAuthSession } = await import('aws-amplify/auth')
     vi.mocked(fetchAuthSession).mockResolvedValue({
-      tokens: { idToken: { toString: () => 'test-id-token' } },
+      tokens: { accessToken: { toString: () => 'test-access-token' } },
     } as never)
 
     const payload = { ok: true }
@@ -50,7 +50,7 @@ describe('apiFetch', () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
-          Authorization: 'Bearer test-id-token',
+          Authorization: 'Bearer test-access-token',
         }),
       }),
     )
