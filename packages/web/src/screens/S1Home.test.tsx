@@ -33,7 +33,7 @@ describe('S1Home', () => {
 
   it('0件時に空状態メッセージが表示される', () => {
     renderS1Home({ bonsaiList: [] })
-    expect(screen.getByText('まだ盆栽がありません')).toBeInTheDocument()
+    expect(screen.getByText('盆栽がまだ登録されていません')).toBeInTheDocument()
     expect(screen.getByText('最初の盆栽を登録する')).toBeInTheDocument()
   })
 
