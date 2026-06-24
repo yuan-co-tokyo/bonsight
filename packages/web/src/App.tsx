@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { fetchAuthSession } from 'aws-amplify/auth'
+import { Hub } from 'aws-amplify/utils'
 import S0Landing from './screens/S0Landing'
 import S1Home from './screens/S1Home'
 import S2Form from './screens/S2Form'
@@ -9,12 +12,22 @@ import S6AiChat from './screens/S6AiChat'
 import S7Viewer from './screens/S7Viewer'
 import S8Settings from './screens/S8Settings'
 
-export default function App() {
+function AppRoutes({ authed }: { authed: boolean }) {
+  if (!authed) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="*" element={<S0Landing />} />
+        </Routes>
+      </BrowserRouter>
+    )
+  }
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/s0" replace />} />
-        <Route path="/s0" element={<S0Landing />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/s0" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<S1Home />} />
         <Route path="/s1" element={<S1Home />} />
         <Route path="/s2" element={<S2Form />} />
@@ -33,7 +46,31 @@ export default function App() {
         <Route path="/s7/:mediaId" element={<S7Viewer />} />
         <Route path="/s7" element={<S7Viewer />} />
         <Route path="/s8" element={<S8Settings />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   )
+}
+
+export default function App() {
+  const [authed, setAuthed] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    fetchAuthSession()
+      .then((session) => {
+        setAuthed(!!session.tokens?.idToken)
+      })
+      .catch(() => setAuthed(false))
+
+    const unsubscribe = Hub.listen('auth', (capsule) => {
+      if (capsule.payload.event === 'signedIn') setAuthed(true)
+      if (capsule.payload.event === 'signedOut') setAuthed(false)
+    })
+
+    return unsubscribe
+  }, [])
+
+  if (authed === null) return null
+
+  return <AppRoutes authed={authed} />
 }

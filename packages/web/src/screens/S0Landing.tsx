@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { signInWithRedirect } from 'aws-amplify/auth'
 import BonsightLogo from '../components/BonsightLogo'
 import Button from '../components/Button'
 
@@ -56,8 +56,6 @@ const FEATURES = [
 ]
 
 export default function S0Landing() {
-  const navigate = useNavigate()
-
   return (
     <div
       style={{
@@ -170,12 +168,10 @@ export default function S0Landing() {
           margin: '48px auto 0',
         }}
       >
-        {/* TODO: Cognito認証後に差替え */}
-        <Button variant="primary" fullWidth onClick={() => navigate('/home')}>
+        <Button variant="primary" fullWidth onClick={() => signInWithRedirect()}>
           ログイン
         </Button>
-        {/* TODO: Cognito新規登録フロー */}
-        <Button variant="secondary" fullWidth onClick={() => navigate('/home')}>
+        <Button variant="secondary" fullWidth onClick={() => signInWithRedirect()}>
           新規登録
         </Button>
       </div>

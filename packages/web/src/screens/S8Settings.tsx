@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { signOut } from 'aws-amplify/auth'
 import BonsightShell from '../components/BonsightShell'
 import Button from '../components/Button'
 import StatusBadge from '../components/StatusBadge'
@@ -50,13 +50,11 @@ const groupHeadingStyle: React.CSSProperties = {
 }
 
 export default function S8Settings() {
-  const navigate = useNavigate()
   const user = STUB_USER
   const initials = user.displayName.charAt(0)
 
-  function handleLogout() {
-    // TODO: Cognito signOut未結線
-    navigate('/')
+  async function handleLogout() {
+    await signOut()
   }
 
   return (
