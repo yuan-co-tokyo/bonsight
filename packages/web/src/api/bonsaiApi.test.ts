@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createBonsai, getBonsais } from './bonsaiApi'
 
+vi.mock('aws-amplify/auth', () => ({
+  fetchAuthSession: vi.fn().mockResolvedValue({ tokens: undefined }),
+  signOut: vi.fn().mockResolvedValue(undefined),
+}))
+
 describe('bonsaiApi', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -26,7 +31,7 @@ describe('bonsaiApi', () => {
     await expect(getBonsais()).resolves.toEqual(bonsais)
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:3000/api/v1/bonsai',
-      expect.objectContaining({ headers: { 'Content-Type': 'application/json' } }),
+      expect.objectContaining({ headers: expect.objectContaining({ 'Content-Type': 'application/json' }) }),
     )
   })
 

@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { CognitoAuthGuard } from '../auth/cognito-auth.guard';
 import { AdviceService, CreateAdviceDto } from './advice.service';
 
+@UseGuards(CognitoAuthGuard)
 @Controller('bonsai/:bonsaiId/advice')
 export class AdviceController {
   constructor(private readonly adviceService: AdviceService) {}
