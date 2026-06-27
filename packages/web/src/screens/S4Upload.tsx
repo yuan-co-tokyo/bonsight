@@ -90,7 +90,7 @@ export default function S4Upload() {
 
       // 4. 完了後遷移
       if (autoDiagnose) {
-        navigate(`/bonsai/${bonsaiId}/ai`, { state: { mediaId: media.id } })
+        navigate(`/bonsai/${bonsaiId}/ai`, { state: { mediaId: media.id, mediaUrl: media.cloudfrontUrl } })
       } else {
         navigate(`/bonsai/${bonsaiId}`)
       }

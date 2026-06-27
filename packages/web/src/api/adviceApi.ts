@@ -1,21 +1,43 @@
-import type { AIAdviceDto, CreateAdviceDto } from 'shared'
 import { apiFetch } from './client'
 
-const USE_STUB = true
+export interface HealthFlag {
+  key: string
+  label: string
+  level: 'good' | 'warning' | 'danger'
+}
 
-export async function createAdvice(
-  bonsaiId: string,
-  dto: CreateAdviceDto,
-): Promise<AIAdviceDto> {
-  // TODO: Bedrock未結線
-  if (USE_STUB) return {} as AIAdviceDto
-  return apiFetch<AIAdviceDto>(`/bonsai/${bonsaiId}/advice`, {
+export interface DiagnosisData {
+  species: string
+  health: HealthFlag[]
+  styling: string
+  seasonal: string
+  confidence: number
+  disclaimer: string
+}
+
+export interface AdviceResult {
+  id: string
+  bonsaiId: string
+  mediaId?: string
+  diagnosis: DiagnosisData
+  confidence: number | null
+  createdAt: string
+}
+
+export async function createAdvice(bonsaiId: string, mediaId?: string): Promise<AdviceResult> {
+  return apiFetch<AdviceResult>(`/bonsai/${bonsaiId}/advice`, {
     method: 'POST',
-    body: JSON.stringify(dto),
+    body: JSON.stringify({ mediaId }),
   })
 }
 
-export async function getAdvices(bonsaiId: string): Promise<AIAdviceDto[]> {
-  if (USE_STUB) return []
-  return apiFetch<AIAdviceDto[]>(`/bonsai/${bonsaiId}/advice`)
+export async function getAdvices(bonsaiId: string): Promise<AdviceResult[]> {
+  return apiFetch<AdviceResult[]>(`/bonsai/${bonsaiId}/advice`)
+}
+
+export async function sendChat(bonsaiId: string, message: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/bonsai/${bonsaiId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  })
 }
