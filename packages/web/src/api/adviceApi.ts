@@ -41,3 +41,10 @@ export async function sendChat(bonsaiId: string, message: string): Promise<{ mes
     body: JSON.stringify({ message }),
   })
 }
+
+export async function sendChatGeneral(message: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/chat', {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  })
+}

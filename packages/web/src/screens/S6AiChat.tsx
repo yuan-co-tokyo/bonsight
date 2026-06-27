@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
-import { sendChat } from '../api/adviceApi'
+import { sendChat, sendChatGeneral } from '../api/adviceApi'
 
 interface ChatMessage {
   id: string
@@ -130,7 +130,12 @@ export default function S6AiChat() {
     setIsTyping(true)
 
     try {
-      const res = await sendChat(bonsaiId ?? '', userContent)
+      let res: { message: string }
+      if (bonsaiId) {
+        res = await sendChat(bonsaiId, userContent)
+      } else {
+        res = await sendChatGeneral(userContent)
+      }
       setIsTyping(false)
       const aiMsg: ChatMessage = {
         id: `a${Date.now()}`,
@@ -244,7 +249,7 @@ export default function S6AiChat() {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault()
                   void handleSend()
                 }

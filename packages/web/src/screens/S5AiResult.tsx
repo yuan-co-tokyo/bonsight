@@ -259,12 +259,18 @@ export default function S5AiResult() {
           {/* クイック返信チップ */}
           <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px', flexWrap: 'wrap' }}>
             {[
-              { label: '植替えの手順は？', path: '/ai-chat?context=repot' },
-              { label: '芽摘みのコツ', path: '/ai-chat?context=bud' },
-            ].map(({ label, path }) => (
+              { label: '植替えの手順は？', suggestMessage: '植替えの手順は？' },
+              { label: '芽摘みのコツ', suggestMessage: '芽摘みのコツを教えてください' },
+            ].map(({ label, suggestMessage }) => (
               <button
                 key={label}
-                onClick={() => navigate(path)}
+                onClick={() => navigate('/s6', {
+                  state: {
+                    bonsaiId,
+                    species: result.diagnosis.species,
+                    suggestMessage,
+                  }
+                })}
                 style={{
                   border: '1px solid #5C7A52',
                   color: '#5C7A52',
