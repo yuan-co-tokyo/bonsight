@@ -14,6 +14,7 @@ export interface BonsaiDto {
   style?: string;
   currentState?: string;
   coverImageKey?: string;
+  coverImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +29,7 @@ export interface CreateBonsaiDto {
   potInfo?: string;
   style?: string;
   currentState?: string;
+  coverImageKey?: string;
 }
 
 export interface UpdateBonsaiDto extends Partial<CreateBonsaiDto> {}

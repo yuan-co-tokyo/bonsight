@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { STUB_TIMELINE } from '../stubs/stubTimeline'
+import { useNavigate, useLocation } from 'react-router-dom'
+import type { MediaDtoEx } from '../api/mediaApi'
 
 function formatDateJa(isoDate: string): string {
   const d = new Date(isoDate)
@@ -15,26 +15,35 @@ function SparkleIconDark() {
   )
 }
 
+interface S7State {
+  mediaList: MediaDtoEx[]
+  initialIndex: number
+}
+
 export default function S7Viewer() {
-  const { mediaId } = useParams<{ mediaId: string }>()
   const navigate = useNavigate()
-  const entries = STUB_TIMELINE
+  const location = useLocation()
+  const state = location.state as S7State | null
 
-  const initialIndex = mediaId ? entries.findIndex(e => e.id === mediaId) : -1
-  const [currentIndex, setCurrentIndex] = useState(initialIndex >= 0 ? initialIndex : 0)
+  const mediaList: MediaDtoEx[] = state?.mediaList ?? []
+  const [currentIndex, setCurrentIndex] = useState(state?.initialIndex ?? 0)
 
-  const currentEntry = entries[currentIndex]
+  const currentMedia = mediaList[currentIndex]
 
   const goPrev = () => { if (currentIndex > 0) setCurrentIndex(i => i - 1) }
-  const goNext = () => { if (currentIndex < entries.length - 1) setCurrentIndex(i => i + 1) }
+  const goNext = () => { if (currentIndex < mediaList.length - 1) setCurrentIndex(i => i + 1) }
 
-  if (!currentEntry) {
+  if (!currentMedia) {
     return (
       <div style={{ background: '#1A1A17', color: '#EDEBE6', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <p>写真が見つかりません</p>
       </div>
     )
   }
+
+  const dateLabel = currentMedia.takenAt
+    ? formatDateJa(currentMedia.takenAt)
+    : formatDateJa(currentMedia.createdAt)
 
   return (
     <div
@@ -71,36 +80,24 @@ export default function S7Viewer() {
           </svg>
         </button>
         <span style={{ fontSize: 14, fontWeight: 500, color: '#EDEBE6' }}>
-          {currentIndex + 1} / {entries.length}
+          {currentIndex + 1} / {mediaList.length}
         </span>
-        <button
-          style={{
-            width: 40, height: 40, borderRadius: 20,
-            background: 'rgba(0,0,0,0.4)', border: 'none',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          aria-label="共有"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EDEBE6" strokeWidth="2.5">
-            <path d="M12 3v13M5 10l7-7 7 7"/><path d="M5 20h14"/>
-          </svg>
-        </button>
+        <div style={{ width: 40 }} />
       </div>
 
       {/* メイン写真エリア */}
-      <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
-        {/* 暗背景プレースホルダー */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'repeating-linear-gradient(135deg, #2A2A24 0px 9px, #1E1E1B 9px 18px)',
-          display: 'flex', alignItems: 'flex-end',
-          padding: '0 0 12px 12px',
-        }}>
-          <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: '#444' }}>
-            {currentEntry.note}
-          </span>
-        </div>
+      <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <img
+          src={currentMedia.cloudfrontUrl}
+          alt={dateLabel}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+          }}
+        />
         {currentIndex > 0 && (
           <button
             onClick={goPrev}
@@ -119,7 +116,7 @@ export default function S7Viewer() {
             </svg>
           </button>
         )}
-        {currentIndex < entries.length - 1 && (
+        {currentIndex < mediaList.length - 1 && (
           <button
             onClick={goNext}
             aria-label="次の写真"
@@ -150,13 +147,15 @@ export default function S7Viewer() {
         }}
       >
         <p style={{ fontSize: 11.5, color: 'rgba(237,235,230,.55)', margin: '0 0 6px' }}>
-          {formatDateJa(currentEntry.takenAt)}
+          {dateLabel}
         </p>
-        <p style={{ fontSize: 14, lineHeight: 1.6, color: '#EDEBE6', margin: '0 0 14px' }}>
-          {currentEntry.note}
-        </p>
+        {currentMedia.caption && (
+          <p style={{ fontSize: 14, lineHeight: 1.6, color: '#EDEBE6', margin: '0 0 14px' }}>
+            {currentMedia.caption}
+          </p>
+        )}
         <button
-          onClick={() => navigate(`/bonsai/${currentEntry.bonsaiId}/ai`)}
+          onClick={() => navigate(`/bonsai/${currentMedia.bonsaiId}/ai`, { state: { mediaId: currentMedia.id } })}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             background: 'rgba(237,235,230,.12)',

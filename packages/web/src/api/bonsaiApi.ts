@@ -1,6 +1,21 @@
 import type { BonsaiDto, CreateBonsaiDto, UpdateBonsaiDto } from 'shared'
 import { apiFetch } from './client'
 
+export interface CoverPresignResult {
+  presignedUrl: string
+  s3Key: string
+}
+
+export async function getCoverPresignUrl(
+  filename: string,
+  contentType: string,
+): Promise<CoverPresignResult> {
+  return apiFetch<CoverPresignResult>('/media/presign', {
+    method: 'POST',
+    body: JSON.stringify({ type: 'cover', filename, contentType }),
+  })
+}
+
 export async function getBonsais(): Promise<BonsaiDto[]> {
   return apiFetch<BonsaiDto[]>('/bonsai')
 }

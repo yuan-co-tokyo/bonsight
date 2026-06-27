@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { CreateBonsaiDto } from 'shared'
-import { createBonsai, getBonsai, updateBonsai } from '../api/bonsaiApi'
+import { createBonsai, getBonsai, getCoverPresignUrl, updateBonsai } from '../api/bonsaiApi'
 import BonsightShell from '../components/BonsightShell'
 
 interface FormState {
@@ -59,8 +59,9 @@ export default function S2Form() {
   const [saving, setSaving] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
   const [origin, setOrigin] = useState('')
-  const [, setCoverFile] = useState<File | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -117,12 +118,26 @@ export default function S2Form() {
     setSaving(true)
     setApiError(null)
     try {
+      let coverImageKey: string | undefined
+      if (coverFile) {
+        setUploading(true)
+        const { presignedUrl, s3Key } = await getCoverPresignUrl(coverFile.name, coverFile.type)
+        await fetch(presignedUrl, {
+          method: 'PUT',
+          body: coverFile,
+          headers: { 'Content-Type': coverFile.type },
+        })
+        coverImageKey = s3Key
+        setUploading(false)
+      }
+      const dto: CreateBonsaiDto = { ...buildDto(), coverImageKey }
       const saved = id
-        ? await updateBonsai(id, buildDto())
-        : await createBonsai(buildDto())
+        ? await updateBonsai(id, dto)
+        : await createBonsai(dto)
       navigate(id ? `/bonsai/${id}` : `/bonsai/${saved.id}`)
     } catch (e) {
       setApiError(e instanceof Error ? e.message : '保存に失敗しました')
+      setUploading(false)
     } finally {
       setSaving(false)
     }
@@ -148,7 +163,7 @@ export default function S2Form() {
       title={isEditMode ? '盆栽を編集' : '盆栽を登録'}
       leftAction="cancel"
       onBack={() => navigate(-1)}
-      contextAction={{ label: saving ? '保存中...' : '保存', onClick: handleSave, disabled: saving || loading }}
+      contextAction={{ label: uploading ? 'アップロード中...' : saving ? '保存中...' : '保存', onClick: handleSave, disabled: saving || loading || uploading }}
     >
       <div
         style={{

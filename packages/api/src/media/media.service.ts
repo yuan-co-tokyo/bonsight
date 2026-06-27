@@ -1,26 +1,73 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { PresignRequestDto } from './dto/presign-request.dto';
+import { CreateMediaDto } from './dto/create-media.dto';
 
-export class CreateMediaDto {
-  s3Key!: string;
-  caption?: string;
-  takenAt?: string;
-  type?: 'PHOTO' | 'VIDEO';
-}
+export { CreateMediaDto } from './dto/create-media.dto';
 
 @Injectable()
 export class MediaService {
-  getMedia(bonsaiId: string) {
-    // TODO: Prisma未結線
-    return [];
+  private readonly s3 = new S3Client({ region: process.env.AWS_REGION });
+  private readonly bucket = process.env.S3_BUCKET_NAME!;
+  private readonly cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN!;
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  private async verifyBonsaiOwner(bonsaiId: string, sub: string) {
+    const bonsai = await this.prisma.bonsai.findUnique({ where: { id: bonsaiId } });
+    if (!bonsai) throw new NotFoundException(`Bonsai ${bonsaiId} not found`);
+    if (bonsai.owner !== sub) throw new ForbiddenException();
+    return bonsai;
   }
 
-  presign() {
-    // TODO: S3未結線
-    return { uploadUrl: '', key: '' };
+  async presign(dto: PresignRequestDto, sub: string) {
+    const timestamp = Date.now();
+    let s3Key: string;
+    if (dto.type === 'cover') {
+      s3Key = `users/${sub}/covers/${timestamp}-${dto.filename}`;
+    } else {
+      await this.verifyBonsaiOwner(dto.bonsaiId!, sub);
+      s3Key = `users/${sub}/bonsai/${dto.bonsaiId}/${timestamp}-${dto.filename}`;
+    }
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: s3Key,
+      ContentType: dto.contentType,
+    });
+    const presignedUrl = await getSignedUrl(this.s3, command, { expiresIn: 300 });
+    return { presignedUrl, s3Key };
   }
 
-  createMedia(bonsaiId: string, createMediaDto: CreateMediaDto) {
-    // TODO: Prisma未結線
-    return { bonsaiId, ...createMediaDto };
+  async createMedia(bonsaiId: string, dto: CreateMediaDto, sub: string) {
+    await this.verifyBonsaiOwner(bonsaiId, sub);
+    const expectedPrefix = `users/${sub}/bonsai/${bonsaiId}/`;
+    if (!dto.s3Key.startsWith(expectedPrefix)) {
+      throw new ForbiddenException('s3Key prefix mismatch');
+    }
+    const media = await this.prisma.media.create({
+      data: {
+        bonsaiId,
+        s3Key: dto.s3Key,
+        caption: dto.caption,
+        takenAt: dto.takenAt ? new Date(dto.takenAt) : undefined,
+        type: dto.type ?? 'PHOTO',
+      },
+    });
+    const cloudfrontUrl = `${this.cloudfrontDomain}/${media.s3Key}`;
+    return { ...media, cloudfrontUrl };
+  }
+
+  async getMedia(bonsaiId: string, sub: string) {
+    await this.verifyBonsaiOwner(bonsaiId, sub);
+    const items = await this.prisma.media.findMany({
+      where: { bonsaiId },
+      orderBy: { takenAt: 'asc' },
+    });
+    return items.map((m) => ({
+      ...m,
+      cloudfrontUrl: `${this.cloudfrontDomain}/${m.s3Key}`,
+    }));
   }
 }

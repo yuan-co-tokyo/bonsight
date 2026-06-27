@@ -2,11 +2,10 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { BonsaiDto } from 'shared'
 import { getBonsai } from '../api/bonsaiApi'
+import { getMedia, type MediaDtoEx } from '../api/mediaApi'
 import BonsightShell from '../components/BonsightShell'
-import PhotoPlaceholder from '../components/PhotoPlaceholder'
 import Button from '../components/Button'
-import AIBadge from '../components/AIBadge'
-import { STUB_TIMELINE, type TimelineEntryStub } from '../stubs/stubTimeline'
+import PhotoPlaceholder from '../components/PhotoPlaceholder'
 
 function CalendarIcon() {
   return (
@@ -81,10 +80,11 @@ function formatDate(isoDate: string): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
-function monthSpan(entries: TimelineEntryStub[]): string {
+function monthSpan(entries: MediaDtoEx[]): string {
   if (entries.length === 0) return '0'
   if (entries.length === 1) return '1'
-  const times = entries.map(e => new Date(e.takenAt).getTime())
+  const times = entries
+    .map(e => e.takenAt ? new Date(e.takenAt).getTime() : new Date(e.createdAt).getTime())
   const min = new Date(Math.min(...times))
   const max = new Date(Math.max(...times))
   const months = (max.getFullYear() - min.getFullYear()) * 12 + (max.getMonth() - min.getMonth())
@@ -115,17 +115,35 @@ function NotFoundState() {
   )
 }
 
-function TimelineCard({ entry }: { entry: TimelineEntryStub }) {
+function TimelineCard({
+  media,
+  onClick,
+}: {
+  media: MediaDtoEx
+  onClick: () => void
+}) {
+  const dateLabel = media.takenAt ? formatDate(media.takenAt) : formatDate(media.createdAt)
   return (
-    <div style={{
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 14,
-      marginBottom: 16,
-      overflow: 'hidden',
-    }}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 14,
+        marginBottom: 16,
+        overflow: 'hidden',
+        cursor: 'pointer',
+      }}
+    >
       <div style={{ position: 'relative' }}>
-        <PhotoPlaceholder aspectRatio="16/10" label={formatDate(entry.takenAt)} />
+        <img
+          src={media.cloudfrontUrl}
+          alt={dateLabel}
+          style={{ width: '100%', aspectRatio: '16/10', objectFit: 'cover', display: 'block' }}
+        />
         <span
           className="s3-date-pill"
           style={{
@@ -140,15 +158,12 @@ function TimelineCard({ entry }: { entry: TimelineEntryStub }) {
             backdropFilter: 'blur(4px)',
           }}
         >
-          {formatDate(entry.takenAt)}
+          {dateLabel}
         </span>
       </div>
-      <div style={{ padding: 12, fontSize: 13, lineHeight: 1.55, color: 'var(--color-ink)' }}>
-        {entry.note}
-      </div>
-      {entry.aiDiagnosis !== null && (
-        <div style={{ padding: '0 12px 12px' }}>
-          <AIBadge>{entry.aiDiagnosis}</AIBadge>
+      {media.caption && (
+        <div style={{ padding: 12, fontSize: 13, lineHeight: 1.55, color: 'var(--color-ink)' }}>
+          {media.caption}
         </div>
       )}
     </div>
@@ -159,7 +174,7 @@ function EmptyTimeline({ onAdd }: { onAdd: () => void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 16px', gap: 12 }}>
       <CameraIcon />
-      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>まだ記録がありません</p>
+      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>まだ写真がありません</p>
       <button
         onClick={onAdd}
         style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -174,6 +189,7 @@ export default function S3Detail() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [bonsai, setBonsai] = useState<BonsaiDto | null>(null)
+  const [mediaList, setMediaList] = useState<MediaDtoEx[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
@@ -186,12 +202,24 @@ export default function S3Detail() {
     const bonsaiId = id
 
     let ignore = false
-    async function loadBonsai() {
+    async function loadAll() {
       setLoading(true)
       setError(false)
       try {
-        const data = await getBonsai(bonsaiId)
-        if (!ignore) setBonsai(data)
+        const [data, media] = await Promise.all([
+          getBonsai(bonsaiId),
+          getMedia(bonsaiId),
+        ])
+        if (!ignore) {
+          setBonsai(data)
+          // 撮影日昇順
+          const sorted = [...media].sort((a, b) => {
+            const ta = a.takenAt ? new Date(a.takenAt).getTime() : new Date(a.createdAt).getTime()
+            const tb = b.takenAt ? new Date(b.takenAt).getTime() : new Date(b.createdAt).getTime()
+            return ta - tb
+          })
+          setMediaList(sorted)
+        }
       } catch {
         if (!ignore) setError(true)
       } finally {
@@ -199,7 +227,7 @@ export default function S3Detail() {
       }
     }
 
-    void loadBonsai()
+    void loadAll()
     return () => {
       ignore = true
     }
@@ -221,9 +249,11 @@ export default function S3Detail() {
     )
   }
 
-  const timelineEntries = STUB_TIMELINE
-    .filter(e => e.bonsaiId === bonsai.id)
-    .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())
+  function handleThumbnailClick(index: number) {
+    navigate(`/s7/${mediaList[index].id}`, {
+      state: { mediaList, initialIndex: index },
+    })
+  }
 
   return (
     <BonsightShell
@@ -234,8 +264,20 @@ export default function S3Detail() {
       contextAction={{ label: '編集', onClick: () => navigate(`/bonsai/${bonsai.id}/edit`) }}
     >
       <article className="s3-detail">
-        {/* S3-F8: hero aspect-ratio 5/4 */}
-        <PhotoPlaceholder className="s3-hero" label={bonsai.species ?? '樹種未設定'} aspectRatio="5/4" />
+        {/* S3-F8: hero (表紙写真またはプレースホルダ) */}
+        {bonsai.coverImageUrl ? (
+          <img
+            className="s3-hero"
+            src={bonsai.coverImageUrl}
+            alt={displayName(bonsai)}
+            style={{ width: '100%', aspectRatio: '5/4', objectFit: 'cover', display: 'block' }}
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+          />
+        ) : (
+          <div className="s3-hero" style={{ width: '100%', aspectRatio: '5/4' }}>
+            <PhotoPlaceholder label={bonsai.species ?? '樹種未設定'} aspectRatio="5/4" />
+          </div>
+        )}
 
         {/* S3-F3: 名前+樹種ブロック */}
         <div className="s3-bonsai-name-block" style={{ padding: '16px 16px 8px' }}>
@@ -247,14 +289,14 @@ export default function S3Detail() {
           </p>
         </div>
 
-        {/* S3-F4: チップを樹齢/樹形/入手に変更 */}
+        {/* S3-F4: チップ */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 16px 16px' }}>
           <Chip icon={<CalendarIcon />} label={displayAge(bonsai)} />
           <Chip icon={<TreeIcon />} label={bonsai.style ?? '樹形未設定'} />
           <Chip icon={<ShoppingBagIcon />} label={bonsai.acquiredAt ?? '入手日未設定'} />
         </div>
 
-        {/* S3-F5: 写真を追加=primary, AIに診てもらう=secondary */}
+        {/* S3-F5: アクションボタン */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
           <Button variant="primary" onClick={() => navigate(`/bonsai/${bonsai.id}/photo`)}>
             <CameraIcon /> 写真を追加
@@ -264,19 +306,20 @@ export default function S3Detail() {
           </Button>
         </div>
 
-        <section style={{ paddingBottom: 24, padding: '0 16px 24px' }}>
-          {/* TODO: 第四陣でmedia APIを結線。現在はスタブ表示 */}
+        <section style={{ padding: '0 16px 24px' }}>
           {/* S3-F7: 見出し「成長タイムライン」+ 枚数/期間 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
             <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>成長タイムライン</h2>
             <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-              {timelineEntries.length}枚 · {monthSpan(timelineEntries)}ヶ月
+              {mediaList.length}枚 · {monthSpan(mediaList)}ヶ月
             </span>
           </div>
-          {timelineEntries.length === 0 ? (
+          {mediaList.length === 0 ? (
             <EmptyTimeline onAdd={() => navigate(`/bonsai/${bonsai.id}/photo`)} />
           ) : (
-            timelineEntries.map(e => <TimelineCard key={e.id} entry={e} />)
+            mediaList.map((m, i) => (
+              <TimelineCard key={m.id} media={m} onClick={() => handleThumbnailClick(i)} />
+            ))
           )}
         </section>
       </article>

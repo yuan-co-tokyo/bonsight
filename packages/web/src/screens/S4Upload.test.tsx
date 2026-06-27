@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S4Upload from './S4Upload'
 
 const mockNavigate = vi.hoisted(() => vi.fn())
@@ -9,15 +9,32 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
-function renderS4Upload() {
+const { mockGetPresignUrl, mockCreateMedia } = vi.hoisted(() => ({
+  mockGetPresignUrl: vi.fn(),
+  mockCreateMedia: vi.fn(),
+}))
+vi.mock('../api/mediaApi', () => ({
+  getPresignUrl: mockGetPresignUrl,
+  createMedia: mockCreateMedia,
+}))
+
+function renderS4Upload(bonsaiId = 'b1') {
   return render(
-    <MemoryRouter>
-      <S4Upload />
+    <MemoryRouter initialEntries={[`/bonsai/${bonsaiId}/photo`]}>
+      <Routes>
+        <Route path="/bonsai/:id/photo" element={<S4Upload />} />
+      </Routes>
     </MemoryRouter>
   )
 }
 
 describe('S4Upload', () => {
+  beforeEach(() => {
+    mockNavigate.mockReset()
+    mockGetPresignUrl.mockReset()
+    mockCreateMedia.mockReset()
+  })
+
   it('「キャンセル」テキストボタンが存在する(G1)', () => {
     renderS4Upload()
     expect(screen.getByText('キャンセル')).toBeInTheDocument()
@@ -58,5 +75,73 @@ describe('S4Upload', () => {
     const toggle = screen.getByRole('checkbox')
     expect(toggle).toBeInTheDocument()
     expect(toggle).toBeChecked()
+  })
+
+  it('ファイル選択→presign取得→S3 PUT→media登録フローが正常に動作する', async () => {
+    global.URL.createObjectURL = vi.fn(() => 'mock-url')
+    global.fetch = vi.fn().mockResolvedValue({ ok: true } as Response)
+    mockGetPresignUrl.mockResolvedValue({
+      presignedUrl: 'https://s3.example.com/presigned',
+      s3Key: 'users/sub/bonsai/b1/ts-photo.jpg',
+    })
+    mockCreateMedia.mockResolvedValue({
+      id: 'media-1',
+      bonsaiId: 'b1',
+      type: 'PHOTO',
+      s3Key: 'users/sub/bonsai/b1/ts-photo.jpg',
+      cloudfrontUrl: 'https://cdn.example.com/users/sub/bonsai/b1/ts-photo.jpg',
+      createdAt: '2026-06-27T00:00:00.000Z',
+    })
+
+    renderS4Upload('b1')
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'アップロード' }))
+
+    await waitFor(() => {
+      expect(mockGetPresignUrl).toHaveBeenCalledWith('b1', 'photo.jpg', 'image/jpeg')
+    })
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://s3.example.com/presigned',
+        expect.objectContaining({ method: 'PUT' }),
+      )
+    })
+    await waitFor(() => {
+      expect(mockCreateMedia).toHaveBeenCalledWith(
+        'b1',
+        expect.objectContaining({ s3Key: 'users/sub/bonsai/b1/ts-photo.jpg' }),
+      )
+    })
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/bonsai/b1/ai',
+        expect.objectContaining({ state: { mediaId: 'media-1' } }),
+      )
+    })
+  })
+
+  it('S3 PUTが失敗するとエラーメッセージが表示される', async () => {
+    global.URL.createObjectURL = vi.fn(() => 'mock-url')
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 } as Response)
+    mockGetPresignUrl.mockResolvedValue({
+      presignedUrl: 'https://s3.example.com/presigned',
+      s3Key: 'key',
+    })
+
+    renderS4Upload('b1')
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(fileInput, {
+      target: { files: [new File(['img'], 'photo.jpg', { type: 'image/jpeg' })] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'アップロード' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
   })
 })

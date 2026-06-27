@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S7Viewer from './S7Viewer'
-import { STUB_TIMELINE } from '../stubs/stubTimeline'
+import type { MediaDtoEx } from '../api/mediaApi'
 
 const mockNavigate = vi.hoisted(() => vi.fn())
 vi.mock('react-router-dom', async () => {
@@ -10,10 +10,36 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
-function renderS7(mediaId?: string) {
-  const path = mediaId ? `/s7/${mediaId}` : '/s7'
+const mediaList: MediaDtoEx[] = [
+  {
+    id: 'm1',
+    bonsaiId: 'b1',
+    type: 'PHOTO',
+    s3Key: 'users/sub/bonsai/b1/photo1.jpg',
+    cloudfrontUrl: 'https://cdn.example.com/photo1.jpg',
+    takenAt: '2026-01-15T00:00:00.000Z',
+    caption: '冬の様子',
+    createdAt: '2026-01-15T00:00:00.000Z',
+  },
+  {
+    id: 'm2',
+    bonsaiId: 'b1',
+    type: 'PHOTO',
+    s3Key: 'users/sub/bonsai/b1/photo2.jpg',
+    cloudfrontUrl: 'https://cdn.example.com/photo2.jpg',
+    takenAt: '2026-06-10T00:00:00.000Z',
+    caption: '芽摘み後',
+    createdAt: '2026-06-10T00:00:00.000Z',
+  },
+]
+
+function renderS7(options: { mediaList?: MediaDtoEx[]; initialIndex?: number; mediaId?: string } = {}) {
+  const { mediaList: list = mediaList, initialIndex = 0, mediaId = 'm1' } = options
+  const path = `/s7/${mediaId}`
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter
+      initialEntries={[{ pathname: path, state: { mediaList: list, initialIndex } }]}
+    >
       <Routes>
         <Route path="/s7/:mediaId" element={<S7Viewer />} />
         <Route path="/s7" element={<S7Viewer />} />
@@ -25,9 +51,15 @@ function renderS7(mediaId?: string) {
 describe('S7Viewer', () => {
   beforeEach(() => mockNavigate.mockReset())
 
-  it('STUB_TIMELINEのnoteが表示される(最初のエントリ)', () => {
-    renderS7()
-    expect(screen.getAllByText(STUB_TIMELINE[0].note).length).toBeGreaterThan(0)
+  it('mediaListの最初のエントリの写真がimg srcとして表示される', () => {
+    renderS7({ initialIndex: 0 })
+    const img = screen.getByRole('img')
+    expect(img).toHaveAttribute('src', mediaList[0].cloudfrontUrl)
+  })
+
+  it('キャプションが表示される', () => {
+    renderS7({ initialIndex: 0 })
+    expect(screen.getByText('冬の様子')).toBeInTheDocument()
   })
 
   it('「この写真をAIに診てもらう」CTAボタンが存在する', () => {
@@ -35,11 +67,39 @@ describe('S7Viewer', () => {
     expect(screen.getByRole('button', { name: /この写真をAIに診てもらう/ })).toBeInTheDocument()
   })
 
-  it('次ボタンクリックでcurrentIndexが増加する(複数エントリある場合)', () => {
-    renderS7()
-    expect(screen.getAllByText(STUB_TIMELINE[0].note).length).toBeGreaterThan(0)
+  it('次ボタンクリックでcurrentIndexが増加し2枚目の画像に切り替わる', () => {
+    renderS7({ initialIndex: 0 })
+    expect(screen.getByRole('img')).toHaveAttribute('src', mediaList[0].cloudfrontUrl)
+
     const nextBtn = screen.getByRole('button', { name: '次の写真' })
     fireEvent.click(nextBtn)
-    expect(screen.getAllByText(STUB_TIMELINE[1].note).length).toBeGreaterThan(0)
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', mediaList[1].cloudfrontUrl)
+  })
+
+  it('最初のエントリでは前ボタンが表示されない', () => {
+    renderS7({ initialIndex: 0 })
+    expect(screen.queryByRole('button', { name: '前の写真' })).not.toBeInTheDocument()
+  })
+
+  it('最後のエントリでは次ボタンが表示されない', () => {
+    renderS7({ initialIndex: 1 })
+    expect(screen.queryByRole('button', { name: '次の写真' })).not.toBeInTheDocument()
+  })
+
+  it('stateなしで表示すると「写真が見つかりません」が表示される', () => {
+    render(
+      <MemoryRouter initialEntries={['/s7']}>
+        <Routes>
+          <Route path="/s7" element={<S7Viewer />} />
+        </Routes>
+      </MemoryRouter>
+    )
+    expect(screen.getByText('写真が見つかりません')).toBeInTheDocument()
+  })
+
+  it('カウンター表示が正しい(1 / 2)', () => {
+    renderS7({ initialIndex: 0 })
+    expect(screen.getByText('1 / 2')).toBeInTheDocument()
   })
 })

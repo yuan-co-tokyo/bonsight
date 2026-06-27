@@ -14,6 +14,7 @@ type BonsaiCardModel = {
   styleLabel: string
   acquiredLabel: string
   updatedAt: string
+  coverImageUrl?: string
 }
 
 function PlusIcon() {
@@ -57,6 +58,7 @@ function toCardModel(bonsai: BonsaiDto | BonsaiStub): BonsaiCardModel {
     styleLabel: bonsai.style ?? '樹形未設定',
     acquiredLabel: bonsai.acquiredAt ?? '入手日未設定',
     updatedAt: bonsai.updatedAt,
+    coverImageUrl: bonsai.coverImageUrl,
   }
 }
 
@@ -76,7 +78,16 @@ function BonsaiCard({ bonsai, onClick }: { bonsai: BonsaiCardModel; onClick: () 
       }}
       aria-label={bonsai.name}
     >
-      <PhotoPlaceholder label={bonsai.speciesLabel} aspectRatio="1/1" />
+      {bonsai.coverImageUrl ? (
+        <img
+          src={bonsai.coverImageUrl}
+          alt={bonsai.name}
+          style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }}
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+        />
+      ) : (
+        <PhotoPlaceholder label={bonsai.speciesLabel} aspectRatio="1/1" />
+      )}
       {/* S1-F2: 健康バッジ除去、相対日付表示 */}
       <div className="s3-card-body" style={{ padding: '10px 12px 12px' }}>
         <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--color-ink)', margin: '0 0 2px' }}>

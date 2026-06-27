@@ -36,4 +36,8 @@ export class CreateBonsaiDto {
   @IsString()
   @IsOptional()
   currentState?: string;
+
+  @IsString()
+  @IsOptional()
+  coverImageKey?: string;
 }
