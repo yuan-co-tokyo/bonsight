@@ -1,6 +1,9 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -20,6 +23,22 @@ function getSeason(month: number): string {
 }
 
 function mapBedrockError(err: any): never {
+  const name = err?.name ?? '';
+  if (name === 'ResourceNotFoundException') {
+    Logger.warn(`Bedrock ResourceNotFoundException: ${err.message}`, 'ChatService');
+    throw new ServiceUnavailableException('AIチャットサービスが利用できません');
+  }
+  if (name === 'ThrottlingException') {
+    throw new ServiceUnavailableException('AIチャットサービスが混雑しています。しばらく後に再試行してください');
+  }
+  if (name === 'AccessDeniedException') {
+    Logger.error(`Bedrock AccessDeniedException: ${err.message}`, 'ChatService');
+    throw new InternalServerErrorException('AIチャットサービスへのアクセスが拒否されました');
+  }
+  if (name === 'ValidationException') {
+    throw new BadRequestException(`AIチャットリクエストが無効です: ${err.message}`);
+  }
+  Logger.error(`Bedrock unknown error: ${name} ${err.message}`, 'ChatService');
   throw new ServiceUnavailableException('AIチャットサービスが利用できません');
 }
 

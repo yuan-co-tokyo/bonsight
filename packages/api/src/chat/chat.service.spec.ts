@@ -8,6 +8,7 @@ jest.mock('@aws-sdk/client-bedrock-runtime', () => {
 });
 
 import {
+  BadRequestException,
   ForbiddenException,
   NotFoundException,
   ServiceUnavailableException,
@@ -69,6 +70,13 @@ describe('ChatService.chat', () => {
   it('Bedrock 失敗時は ServiceUnavailableException を投げる', async () => {
     bedrock.converse.mockRejectedValueOnce(new Error('Connection error'));
     await expect(service.chat('b1', { message: 'test' }, 'sub1')).rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it('ThrottlingException のとき ServiceUnavailableException (混雑メッセージ) を投げる', async () => {
+    const err = Object.assign(new Error('rate limit'), { name: 'ThrottlingException' });
+    bedrock.converse.mockRejectedValueOnce(err);
+    await expect(service.chat('b1', { message: 'test' }, 'sub1'))
+      .rejects.toThrow(ServiceUnavailableException);
   });
 
   it('bonsai が存在しない場合は NotFoundException', async () => {
@@ -140,6 +148,27 @@ describe('ChatService.chatGeneral', () => {
   it('Bedrock 失敗時は ServiceUnavailableException を投げる', async () => {
     bedrock.converse.mockRejectedValueOnce(new Error('Connection error'));
     await expect(service.chatGeneral({ message: 'test' }, 'sub1')).rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it('ThrottlingException のとき ServiceUnavailableException を投げる', async () => {
+    const err = Object.assign(new Error('rate limit'), { name: 'ThrottlingException' });
+    bedrock.converse.mockRejectedValueOnce(err);
+    await expect(service.chatGeneral({ message: 'test' }, 'sub1'))
+      .rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it('ResourceNotFoundException のとき ServiceUnavailableException を投げる', async () => {
+    const err = Object.assign(new Error('model not found'), { name: 'ResourceNotFoundException' });
+    bedrock.converse.mockRejectedValueOnce(err);
+    await expect(service.chatGeneral({ message: 'test' }, 'sub1'))
+      .rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it('ValidationException のとき BadRequestException を投げる', async () => {
+    const err = Object.assign(new Error('invalid input'), { name: 'ValidationException' });
+    bedrock.converse.mockRejectedValueOnce(err);
+    await expect(service.chatGeneral({ message: 'test' }, 'sub1'))
+      .rejects.toThrow(BadRequestException);
   });
 
   it('user が見つからない場合でも処理を継続する', async () => {
