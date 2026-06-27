@@ -89,6 +89,88 @@ describe('ChatService.chat', () => {
     expect(result.message).toBeTruthy();
   });
 
+});
+
+describe('ChatService.chatGeneral', () => {
+  let service: ChatService;
+  let prisma: any;
+  let bedrock: any;
+
+  beforeEach(async () => {
+    prisma = {
+      bonsai: {
+        findUnique: jest.fn(),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ cognitoSub: 'sub1', region: '大阪' }),
+      },
+    };
+
+    bedrock = {
+      converse: jest.fn().mockResolvedValue({
+        output: {
+          message: {
+            content: [{ text: '盆栽の水やりについて参考としてお伝えします。' }],
+          },
+        },
+      }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ChatService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: BedrockService, useValue: bedrock },
+      ],
+    }).compile();
+
+    service = module.get<ChatService>(ChatService);
+  });
+
+  it('Bedrock.converse のテキスト応答を返す', async () => {
+    const result = await service.chatGeneral({ message: '盆栽の基本は？' }, 'sub1');
+
+    expect(bedrock.converse).toHaveBeenCalledTimes(1);
+    const call = bedrock.converse.mock.calls[0][0];
+    expect(call.system[0].text).toContain('大阪');
+    expect(call.messages[0].content[0].text).toBe('盆栽の基本は？');
+    expect(result).toEqual({ message: '盆栽の水やりについて参考としてお伝えします。' });
+  });
+
+  it('Bedrock 失敗時は ServiceUnavailableException を投げる', async () => {
+    bedrock.converse.mockRejectedValueOnce(new Error('Connection error'));
+    await expect(service.chatGeneral({ message: 'test' }, 'sub1')).rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it('user が見つからない場合でも処理を継続する', async () => {
+    prisma.user.findFirst.mockResolvedValueOnce(null);
+    const result = await service.chatGeneral({ message: 'test' }, 'sub1');
+    const call = bedrock.converse.mock.calls[0][0];
+    expect(call.system[0].text).toContain('不明');
+    expect(result.message).toBeTruthy();
+  });
+});
+
+describe('ChatService — model env', () => {
+  let prisma: any;
+  let bedrock: any;
+
+  beforeEach(() => {
+    prisma = {
+      bonsai: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'b1', owner: 'sub1', name: 'テスト松', species: 'クロマツ' }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ cognitoSub: 'sub1', region: '東京' }),
+      },
+    };
+    bedrock = {
+      converse: jest.fn().mockResolvedValue({
+        output: { message: { content: [{ text: 'ok' }] } },
+      }),
+    };
+  });
+
   it('BEDROCK_CHAT_MODEL_ID が converse の modelId に渡る', async () => {
     const origEnv = process.env.BEDROCK_CHAT_MODEL_ID;
     process.env.BEDROCK_CHAT_MODEL_ID = 'test-chat-model';

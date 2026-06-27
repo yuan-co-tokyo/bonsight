@@ -3,16 +3,24 @@ import { CognitoAuthGuard } from '../auth/cognito-auth.guard';
 import { ChatRequestDto, ChatService } from './chat.service';
 
 @UseGuards(CognitoAuthGuard)
-@Controller('bonsai/:bonsaiId/chat')
+@Controller()
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
-  @Post()
+  @Post('bonsai/:bonsaiId/chat')
   chat(
     @Param('bonsaiId') bonsaiId: string,
     @Body() dto: ChatRequestDto,
     @Req() req: any,
   ) {
     return this.chatService.chat(bonsaiId, dto, req.user.sub);
+  }
+
+  @Post('chat')
+  chatGeneral(
+    @Body() dto: ChatRequestDto,
+    @Req() req: any,
+  ) {
+    return this.chatService.chatGeneral(dto, req.user.sub);
   }
 }

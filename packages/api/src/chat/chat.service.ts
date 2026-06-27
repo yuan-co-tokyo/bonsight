@@ -40,6 +40,33 @@ export class ChatService {
     return bonsai;
   }
 
+  async chatGeneral(dto: ChatRequestDto, sub: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({ where: { cognitoSub: sub } });
+    const season = getSeason(new Date().getMonth());
+
+    const systemPrompt = `あなたは盆栽の専門家AIアシスタントです。
+ユーザーの地域: ${user?.region ?? '不明'}
+現在の季節: ${season}
+盆栽の世話について、丁寧かつ具体的にアドバイスしてください。
+断定的な診断は避け、不確実な情報は「参考として」と前置きしてください。
+免責: このアドバイスは参考情報です。専門家・樹医の診断の代替ではありません。`;
+
+    let res: any;
+    try {
+      res = await this.bedrock.converse({
+        system: [{ text: systemPrompt }],
+        messages: [{ role: 'user', content: [{ text: dto.message }] }],
+        maxTokens: 1024,
+        modelId: this.chatModelId,
+      });
+    } catch (err) {
+      mapBedrockError(err);
+    }
+    return {
+      message: res.output.message.content.find((c: any) => c.text)?.text ?? '',
+    };
+  }
+
   async chat(bonsaiId: string, dto: ChatRequestDto, sub: string) {
     const bonsai = await this.verifyBonsaiOwner(bonsaiId, sub);
 
