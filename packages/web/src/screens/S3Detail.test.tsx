@@ -145,6 +145,34 @@ describe('S3Detail', () => {
     expect(screen.queryByRole('img', { name: '五葉松「翁」' })).toBeNull()
   })
 
+  it('写真なし+coverImageUrlなし → 「AIに診てもらう」がdisabled', async () => {
+    mockGetMedia.mockResolvedValue([])
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+    const aiBtn = screen.getByRole('button', { name: 'AIに診てもらう' })
+    expect(aiBtn).toBeDisabled()
+  })
+
+  it('写真あり → 「AIに診てもらう」がdisabledでない', async () => {
+    mockGetMedia.mockResolvedValue(mediaFixture('b1'))
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+    const aiBtn = screen.getByRole('button', { name: 'AIに診てもらう' })
+    expect(aiBtn).not.toBeDisabled()
+  })
+
+  it('coverImageUrlのみあり(mediaList空) → 「AIに診てもらう」がdisabledでない', async () => {
+    mockGetBonsai.mockResolvedValue({
+      ...bonsaiFixture('b1'),
+      coverImageUrl: 'https://cdn.example.com/cover.jpg',
+    })
+    mockGetMedia.mockResolvedValue([])
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+    const aiBtn = screen.getByRole('button', { name: 'AIに診てもらう' })
+    expect(aiBtn).not.toBeDisabled()
+  })
+
   it('サムネクリックでS7ビューアに遷移しmediaListとindexをstateで渡す', async () => {
     const media = mediaFixture('b1')
     mockGetMedia.mockResolvedValue(media)
