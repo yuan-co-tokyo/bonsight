@@ -1,5 +1,8 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { MediaService, CreateMediaDto } from './media.service';
+import { validate } from 'class-validator';
+import { MediaService } from './media.service';
+import { CreateMediaDto } from './dto/create-media.dto';
+import { PresignRequestDto } from './dto/presign-request.dto';
 
 jest.mock('../../generated/prisma/client', () => ({
   PrismaClient: class {
@@ -22,6 +25,7 @@ const OWNER = 'cognito-sub-owner';
 const OTHER = 'cognito-sub-other';
 const BONSAI_ID = 'bonsai-001';
 const BONSAI = { id: BONSAI_ID, owner: OWNER, name: 'Goyomatsu' };
+const VALID_S3KEY = `users/${OWNER}/bonsai/${BONSAI_ID}/ts-photo.jpg`;
 
 const originalEnv = process.env;
 
@@ -54,6 +58,45 @@ describe('MediaService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new MediaService(prisma as never);
+  });
+
+  describe('PresignRequestDto validation', () => {
+    it('fails validation when all fields are missing', async () => {
+      const dto = Object.assign(new PresignRequestDto(), {});
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it('passes validation with all required string fields', async () => {
+      const dto = Object.assign(new PresignRequestDto(), {
+        bonsaiId: 'b1',
+        filename: 'photo.jpg',
+        contentType: 'image/jpeg',
+      });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+  });
+
+  describe('CreateMediaDto validation', () => {
+    it('fails validation when s3Key is missing', async () => {
+      const dto = Object.assign(new CreateMediaDto(), {});
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors.some((e) => e.property === 's3Key')).toBe(true);
+    });
+
+    it('passes validation with required s3Key', async () => {
+      const dto = Object.assign(new CreateMediaDto(), { s3Key: 'users/sub/bonsai/id/file.jpg' });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it('fails validation when type is invalid', async () => {
+      const dto = Object.assign(new CreateMediaDto(), { s3Key: 'key', type: 'AUDIO' });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'type')).toBe(true);
+    });
   });
 
   describe('presign', () => {
@@ -96,27 +139,43 @@ describe('MediaService', () => {
   });
 
   describe('createMedia', () => {
-    const dto: CreateMediaDto = { s3Key: 'users/owner/bonsai/001/ts-photo.jpg' };
-
     it('creates a media record and returns it with cloudfrontUrl', async () => {
       prisma.bonsai.findUnique.mockResolvedValue(BONSAI);
-      const created = { id: 'media-1', bonsaiId: BONSAI_ID, s3Key: dto.s3Key };
+      const created = { id: 'media-1', bonsaiId: BONSAI_ID, s3Key: VALID_S3KEY };
       prisma.media.create.mockResolvedValue(created);
 
-      const result = await service.createMedia(BONSAI_ID, dto, OWNER);
+      const result = await service.createMedia(BONSAI_ID, { s3Key: VALID_S3KEY }, OWNER);
 
-      expect(result.s3Key).toBe(dto.s3Key);
+      expect(result.s3Key).toBe(VALID_S3KEY);
       expect(result.cloudfrontUrl).toBe(
-        `https://xxxx.cloudfront.net/${dto.s3Key}`,
+        `https://xxxx.cloudfront.net/${VALID_S3KEY}`,
       );
     });
 
     it('throws ForbiddenException for another user\'s bonsai', async () => {
       prisma.bonsai.findUnique.mockResolvedValue({ ...BONSAI, owner: OTHER });
 
-      await expect(service.createMedia(BONSAI_ID, dto, OWNER)).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(
+        service.createMedia(BONSAI_ID, { s3Key: VALID_S3KEY }, OWNER),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when s3Key prefix does not match owner/bonsaiId', async () => {
+      prisma.bonsai.findUnique.mockResolvedValue(BONSAI);
+
+      const maliciousKey = `users/${OTHER}/bonsai/${BONSAI_ID}/stolen.jpg`;
+      await expect(
+        service.createMedia(BONSAI_ID, { s3Key: maliciousKey }, OWNER),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when s3Key uses different bonsaiId', async () => {
+      prisma.bonsai.findUnique.mockResolvedValue(BONSAI);
+
+      const wrongBonsaiKey = `users/${OWNER}/bonsai/other-bonsai/file.jpg`;
+      await expect(
+        service.createMedia(BONSAI_ID, { s3Key: wrongBonsaiKey }, OWNER),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 

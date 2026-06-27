@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { CognitoAuthGuard } from '../auth/cognito-auth.guard';
-import { CreateMediaDto, MediaService } from './media.service';
+import { MediaService } from './media.service';
+import { CreateMediaDto } from './dto/create-media.dto';
 import { PresignRequestDto } from './dto/presign-request.dto';
 
 @UseGuards(CognitoAuthGuard)

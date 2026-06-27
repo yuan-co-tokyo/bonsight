@@ -3,13 +3,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PresignRequestDto } from './dto/presign-request.dto';
+import { CreateMediaDto } from './dto/create-media.dto';
 
-export class CreateMediaDto {
-  s3Key!: string;
-  caption?: string;
-  takenAt?: string;
-  type?: 'PHOTO' | 'VIDEO';
-}
+export { CreateMediaDto } from './dto/create-media.dto';
 
 @Injectable()
 export class MediaService {
@@ -41,6 +37,10 @@ export class MediaService {
 
   async createMedia(bonsaiId: string, dto: CreateMediaDto, sub: string) {
     await this.verifyBonsaiOwner(bonsaiId, sub);
+    const expectedPrefix = `users/${sub}/bonsai/${bonsaiId}/`;
+    if (!dto.s3Key.startsWith(expectedPrefix)) {
+      throw new ForbiddenException('s3Key prefix mismatch');
+    }
     const media = await this.prisma.media.create({
       data: {
         bonsaiId,
