@@ -4,11 +4,12 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S2Form from './S2Form'
 
-const { mockNavigate, mockCreateBonsai, mockGetBonsai, mockUpdateBonsai } = vi.hoisted(() => ({
+const { mockNavigate, mockCreateBonsai, mockGetBonsai, mockUpdateBonsai, mockGetCoverPresignUrl } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockCreateBonsai: vi.fn(),
   mockGetBonsai: vi.fn(),
   mockUpdateBonsai: vi.fn(),
+  mockGetCoverPresignUrl: vi.fn(),
 }))
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -18,6 +19,7 @@ vi.mock('../api/bonsaiApi', () => ({
   createBonsai: mockCreateBonsai,
   getBonsai: mockGetBonsai,
   updateBonsai: mockUpdateBonsai,
+  getCoverPresignUrl: mockGetCoverPresignUrl,
 }))
 
 function renderS2Form(initialPath = '/bonsai/new') {
@@ -37,6 +39,7 @@ describe('S2Form', () => {
     mockCreateBonsai.mockReset()
     mockGetBonsai.mockReset()
     mockUpdateBonsai.mockReset()
+    mockGetCoverPresignUrl.mockReset()
     mockCreateBonsai.mockResolvedValue({ id: 'created-1' })
   })
 
@@ -114,5 +117,34 @@ describe('S2Form', () => {
   it('「名前・愛称」ラベルが表示される(S2-L1)', () => {
     renderS2Form()
     expect(screen.getByText(/名前・愛称/)).toBeInTheDocument()
+  })
+
+  it('表紙選択→保存でcoverImageKeyがcreateに渡る', async () => {
+    const user = userEvent.setup()
+    mockGetCoverPresignUrl.mockResolvedValue({ presignedUrl: 'https://s3.example.com/put', s3Key: 'cover/test.jpg' })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+
+    renderS2Form()
+    await user.type(screen.getByLabelText('名前・愛称'), 'テスト盆栽')
+
+    const file = new File(['img'], 'cover.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(input, file)
+
+    await user.click(screen.getByRole('button', { name: '保存' }))
+
+    expect(mockGetCoverPresignUrl).toHaveBeenCalledWith('cover.jpg', 'image/jpeg')
+    expect(mockCreateBonsai).toHaveBeenCalledWith(expect.objectContaining({ coverImageKey: 'cover/test.jpg' }))
+
+    vi.unstubAllGlobals()
+  })
+
+  it('表紙未選択で保存するとcoverImageKeyなしでcreateされる', async () => {
+    const user = userEvent.setup()
+    renderS2Form()
+    await user.type(screen.getByLabelText('名前・愛称'), 'テスト盆栽')
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    expect(mockGetCoverPresignUrl).not.toHaveBeenCalled()
+    expect(mockCreateBonsai).toHaveBeenCalledWith(expect.not.objectContaining({ coverImageKey: expect.anything() }))
   })
 })

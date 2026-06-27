@@ -5,6 +5,7 @@ import { getBonsai } from '../api/bonsaiApi'
 import { getMedia, type MediaDtoEx } from '../api/mediaApi'
 import BonsightShell from '../components/BonsightShell'
 import Button from '../components/Button'
+import PhotoPlaceholder from '../components/PhotoPlaceholder'
 
 function CalendarIcon() {
   return (
@@ -264,28 +265,17 @@ export default function S3Detail() {
     >
       <article className="s3-detail">
         {/* S3-F8: hero (表紙写真またはプレースホルダ) */}
-        {bonsai.coverImageKey ? (
+        {bonsai.coverImageUrl ? (
           <img
             className="s3-hero"
-            src={`${import.meta.env.VITE_CLOUDFRONT_DOMAIN ?? ''}/${bonsai.coverImageKey}`}
+            src={bonsai.coverImageUrl}
             alt={displayName(bonsai)}
             style={{ width: '100%', aspectRatio: '5/4', objectFit: 'cover', display: 'block' }}
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         ) : (
-          <div
-            className="s3-hero"
-            style={{
-              width: '100%',
-              aspectRatio: '5/4',
-              background: 'var(--color-surface)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--color-text-secondary)',
-              fontSize: 13,
-            }}
-          >
-            {bonsai.species ?? '樹種未設定'}
+          <div className="s3-hero" style={{ width: '100%', aspectRatio: '5/4' }}>
+            <PhotoPlaceholder label={bonsai.species ?? '樹種未設定'} aspectRatio="5/4" />
           </div>
         )}
 

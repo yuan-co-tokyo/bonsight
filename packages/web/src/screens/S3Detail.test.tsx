@@ -126,6 +126,25 @@ describe('S3Detail', () => {
     expect(await screen.findByText('まだ写真がありません')).toBeInTheDocument()
   })
 
+  it('coverImageUrlありのとき hero <img> が表示される', async () => {
+    mockGetBonsai.mockResolvedValue({
+      ...bonsaiFixture('b1'),
+      coverImageUrl: 'https://cdn.example.com/cover.jpg',
+    })
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+    const heroImg = screen.getByRole('img', { name: '五葉松「翁」' })
+    expect(heroImg).toHaveAttribute('src', 'https://cdn.example.com/cover.jpg')
+  })
+
+  it('coverImageUrlなしのとき PhotoPlaceholder が表示され hero img はない', async () => {
+    mockGetMedia.mockResolvedValue([])
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+    // bonsaiFixture に coverImageUrl なし → PhotoPlaceholder (img ではない)
+    expect(screen.queryByRole('img', { name: '五葉松「翁」' })).toBeNull()
+  })
+
   it('サムネクリックでS7ビューアに遷移しmediaListとindexをstateで渡す', async () => {
     const media = mediaFixture('b1')
     mockGetMedia.mockResolvedValue(media)
