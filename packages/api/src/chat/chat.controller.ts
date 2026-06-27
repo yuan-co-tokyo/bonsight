@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { CognitoAuthGuard } from '../auth/cognito-auth.guard';
 import { ChatRequestDto, ChatService } from './chat.service';
 
@@ -10,8 +10,9 @@ export class ChatController {
   @Post()
   chat(
     @Param('bonsaiId') bonsaiId: string,
-    @Body() chatRequestDto: ChatRequestDto,
+    @Body() dto: ChatRequestDto,
+    @Req() req: any,
   ) {
-    return this.chatService.chat(bonsaiId, chatRequestDto);
+    return this.chatService.chat(bonsaiId, dto, req.user.sub);
   }
 }
