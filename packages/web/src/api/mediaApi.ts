@@ -1,24 +1,35 @@
-import type { CreateMediaDto, MediaDto, PresignResponseDto } from 'shared'
+import type { CreateMediaDto, MediaDto } from 'shared'
 import { apiFetch } from './client'
 
-const USE_STUB = true
-
-export async function getMedia(bonsaiId: string): Promise<MediaDto[]> {
-  if (USE_STUB) return []
-  return apiFetch<MediaDto[]>(`/bonsai/${bonsaiId}/media`)
+export interface MediaDtoEx extends MediaDto {
+  cloudfrontUrl: string
 }
 
-export async function presignUpload(): Promise<PresignResponseDto> {
-  // TODO: S3未結線
-  return apiFetch<PresignResponseDto>('/media/presign', { method: 'POST' })
+export interface PresignResult {
+  presignedUrl: string
+  s3Key: string
+}
+
+export async function getPresignUrl(
+  bonsaiId: string,
+  filename: string,
+  contentType: string,
+): Promise<PresignResult> {
+  return apiFetch<PresignResult>('/media/presign', {
+    method: 'POST',
+    body: JSON.stringify({ bonsaiId, filename, contentType }),
+  })
+}
+
+export async function getMedia(bonsaiId: string): Promise<MediaDtoEx[]> {
+  return apiFetch<MediaDtoEx[]>(`/bonsai/${bonsaiId}/media`)
 }
 
 export async function createMedia(
   bonsaiId: string,
   dto: CreateMediaDto,
-): Promise<MediaDto> {
-  if (USE_STUB) return {} as MediaDto
-  return apiFetch<MediaDto>(`/bonsai/${bonsaiId}/media`, {
+): Promise<MediaDtoEx> {
+  return apiFetch<MediaDtoEx>(`/bonsai/${bonsaiId}/media`, {
     method: 'POST',
     body: JSON.stringify(dto),
   })

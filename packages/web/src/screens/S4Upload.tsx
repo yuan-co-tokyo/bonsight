@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import AIBadge from '../components/AIBadge'
 import Button from '../components/Button'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
+import { getPresignUrl, createMedia } from '../api/mediaApi'
 
 const fieldStyle: React.CSSProperties = {
   width: '100%',
@@ -36,6 +37,9 @@ function todayString() {
 
 export default function S4Upload() {
   const navigate = useNavigate()
+  // ルートは /bonsai/:id/photo または /s4/:bonsaiId
+  const { id, bonsaiId: bonsaiIdParam } = useParams<{ id?: string; bonsaiId?: string }>()
+  const bonsaiId = id ?? bonsaiIdParam ?? ''
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -44,35 +48,57 @@ export default function S4Upload() {
   const [caption, setCaption] = useState('')
   const [autoDiagnose, setAutoDiagnose] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (f) {
       setSelectedFile(f)
       setPreviewUrl(URL.createObjectURL(f))
+      setUploadError(null)
     }
   }
 
-  function handleUpload() {
-    if (!selectedFile) return
+  async function handleUpload() {
+    if (!selectedFile || !bonsaiId) return
     setUploading(true)
-    setProgress(0)
-    // TODO: AWS S3 presigned URL取得→直接アップロード→DB登録 未結線
-    let current = 0
-    const timer = setInterval(() => {
-      current += 20
-      setProgress(current)
-      if (current >= 100) {
-        clearInterval(timer)
-        setUploading(false)
-        if (autoDiagnose) {
-          navigate('/bonsai/b1/ai-result') // TODO: 実際は登録したmediaIdをURLパラメータに含める
-        } else {
-          navigate(-1)
-        }
+    setUploadError(null)
+
+    try {
+      // 1. presigned URL取得
+      const { presignedUrl, s3Key } = await getPresignUrl(
+        bonsaiId,
+        selectedFile.name,
+        selectedFile.type,
+      )
+
+      // 2. S3へ直接PUT（presigned URLは署名済みなのでAuthヘッダー不要）
+      const s3Res = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: selectedFile,
+        headers: { 'Content-Type': selectedFile.type },
+      })
+      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`)
+
+      // 3. APIにmedia登録
+      const media = await createMedia(bonsaiId, {
+        s3Key,
+        takenAt: takenAt ? `${takenAt}T00:00:00.000Z` : undefined,
+        caption: caption || undefined,
+        type: 'PHOTO',
+      })
+
+      // 4. 完了後遷移
+      if (autoDiagnose) {
+        navigate(`/bonsai/${bonsaiId}/ai`, { state: { mediaId: media.id } })
+      } else {
+        navigate(`/bonsai/${bonsaiId}`)
       }
-    }, 500)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'アップロードに失敗しました')
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -247,16 +273,33 @@ export default function S4Upload() {
             </label>
           </div>
 
-          {/* 進捗バー */}
+          {/* エラー表示 */}
+          {uploadError && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 14px',
+                borderRadius: 10,
+                background: 'var(--status-danger-bg, #FEF2F2)',
+                color: 'var(--status-danger-text, #B91C1C)',
+                fontSize: 13,
+              }}
+            >
+              {uploadError}
+            </div>
+          )}
+
+          {/* 進捗インジケータ */}
           {uploading && (
-            <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 2 }}>
+            <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 2, overflow: 'hidden' }}>
               <div
                 style={{
-                  width: `${progress}%`,
+                  width: '100%',
                   height: '100%',
                   background: 'var(--color-accent)',
                   borderRadius: 2,
-                  transition: 'width 0.3s',
+                  animation: 'pulse 1.5s ease-in-out infinite',
+                  opacity: 0.8,
                 }}
               />
             </div>
@@ -279,10 +322,10 @@ export default function S4Upload() {
         <Button
           variant="primary"
           disabled={!selectedFile || uploading}
-          onClick={handleUpload}
+          onClick={() => { void handleUpload() }}
           style={{ width: '100%', height: 50, borderRadius: 14 }}
         >
-          {uploading ? `アップロード中... ${progress}%` : 'アップロード'}
+          {uploading ? 'アップロード中...' : 'アップロード'}
         </Button>
       </div>
     </div>
