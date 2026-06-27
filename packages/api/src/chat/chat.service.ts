@@ -25,6 +25,9 @@ function mapBedrockError(err: any): never {
 
 @Injectable()
 export class ChatService {
+  private readonly chatModelId =
+    process.env.BEDROCK_CHAT_MODEL_ID ?? process.env.BEDROCK_MODEL_ID!;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly bedrock: BedrockService,
@@ -58,6 +61,7 @@ export class ChatService {
         system: [{ text: systemPrompt }],
         messages: [{ role: 'user', content: [{ text: dto.message }] }],
         maxTokens: 1024,
+        modelId: this.chatModelId,
       });
     } catch (err) {
       mapBedrockError(err);

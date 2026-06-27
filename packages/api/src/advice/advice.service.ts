@@ -88,6 +88,8 @@ function mapBedrockError(err: any): never {
 export class AdviceService {
   private readonly s3 = new S3Client({ region: process.env.AWS_REGION ?? 'ap-northeast-1' });
   private readonly bucket = process.env.S3_BUCKET_NAME!;
+  private readonly diagnosisModelId =
+    process.env.BEDROCK_DIAGNOSIS_MODEL_ID ?? process.env.BEDROCK_MODEL_ID!;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -101,29 +103,41 @@ export class AdviceService {
     return bonsai;
   }
 
-  async createAdvice(bonsaiId: string, dto: CreateAdviceDto, sub: string) {
-    await this.verifyBonsaiOwner(bonsaiId, sub);
+  private async getS3Bytes(s3Key: string): Promise<Uint8Array> {
+    const obj = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }));
+    return (obj.Body as any).transformToByteArray();
+  }
 
-    let media: any;
+  async createAdvice(bonsaiId: string, dto: CreateAdviceDto, sub: string) {
+    const bonsai = await this.verifyBonsaiOwner(bonsaiId, sub);
+
+    let bytes: Uint8Array;
+    let format: 'jpeg' | 'png' | 'webp' | 'gif';
+    let resolvedMediaId: string | null = null;
+
     if (dto.mediaId) {
-      media = await this.prisma.media.findUnique({ where: { id: dto.mediaId } });
-      if (!media || media.bonsaiId !== bonsaiId) {
-        throw new BadRequestException('写真がありません');
-      }
+      const media = await this.prisma.media.findUnique({ where: { id: dto.mediaId } });
+      if (!media || media.bonsaiId !== bonsaiId) throw new BadRequestException('写真がありません');
+      bytes = await this.getS3Bytes(media.s3Key);
+      format = getImageFormat(media.s3Key);
+      resolvedMediaId = media.id;
     } else {
-      const medias = await this.prisma.media.findMany({
+      const latestMedia = await this.prisma.media.findFirst({
         where: { bonsaiId },
         orderBy: { takenAt: 'desc' },
-        take: 1,
       });
-      media = medias[0];
-      if (!media) throw new BadRequestException('写真がありません');
+      if (latestMedia) {
+        bytes = await this.getS3Bytes(latestMedia.s3Key);
+        format = getImageFormat(latestMedia.s3Key);
+        resolvedMediaId = latestMedia.id;
+      } else if (bonsai.coverImageKey) {
+        bytes = await this.getS3Bytes(bonsai.coverImageKey);
+        format = getImageFormat(bonsai.coverImageKey);
+        resolvedMediaId = null;
+      } else {
+        throw new BadRequestException('写真がありません');
+      }
     }
-
-    const obj = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: media.s3Key }));
-    const bytes = await (obj.Body as any).transformToByteArray();
-
-    const format = getImageFormat(media.s3Key);
 
     let res: any;
     try {
@@ -141,6 +155,7 @@ export class AdviceService {
           toolChoice: { tool: { name: 'record_diagnosis' } },
         },
         maxTokens: 1024,
+        modelId: this.diagnosisModelId,
       });
     } catch (err) {
       mapBedrockError(err);
@@ -152,7 +167,7 @@ export class AdviceService {
     return this.prisma.aIAdvice.create({
       data: {
         bonsaiId,
-        mediaId: media.id,
+        mediaId: resolvedMediaId,
         diagnosis: block.input,
         confidence: block.input.confidence ?? null,
       },

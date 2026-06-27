@@ -88,4 +88,24 @@ describe('ChatService.chat', () => {
     expect(call.system[0].text).toContain('不明');
     expect(result.message).toBeTruthy();
   });
+
+  it('BEDROCK_CHAT_MODEL_ID が converse の modelId に渡る', async () => {
+    const origEnv = process.env.BEDROCK_CHAT_MODEL_ID;
+    process.env.BEDROCK_CHAT_MODEL_ID = 'test-chat-model';
+
+    const m = await Test.createTestingModule({
+      providers: [
+        ChatService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: BedrockService, useValue: bedrock },
+      ],
+    }).compile();
+    const svc = m.get<ChatService>(ChatService);
+
+    await svc.chat('b1', { message: 'テスト' }, 'sub1');
+
+    expect(bedrock.converse.mock.calls[0][0].modelId).toBe('test-chat-model');
+
+    process.env.BEDROCK_CHAT_MODEL_ID = origEnv;
+  });
 });

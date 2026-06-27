@@ -44,11 +44,11 @@ describe('AdviceService.createAdvice', () => {
   beforeEach(async () => {
     prisma = {
       bonsai: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'b1', owner: 'sub1', name: 'テスト' }),
+        findUnique: jest.fn().mockResolvedValue({ id: 'b1', owner: 'sub1', name: 'テスト', coverImageKey: null }),
       },
       media: {
         findUnique: jest.fn().mockResolvedValue({ id: 'm1', bonsaiId: 'b1', s3Key: 'users/sub1/bonsai/b1/photo.jpg' }),
-        findMany: jest.fn().mockResolvedValue([{ id: 'm1', bonsaiId: 'b1', s3Key: 'users/sub1/bonsai/b1/photo.jpg' }]),
+        findFirst: jest.fn().mockResolvedValue({ id: 'm1', bonsaiId: 'b1', s3Key: 'users/sub1/bonsai/b1/photo.jpg' }),
       },
       aIAdvice: {
         create: jest.fn().mockResolvedValue({ id: 'a1', bonsaiId: 'b1', mediaId: 'm1', diagnosis: mockDiagnosis, confidence: 0.85 }),
@@ -101,6 +101,49 @@ describe('AdviceService.createAdvice', () => {
     expect(result.confidence).toBe(0.85);
   });
 
+  it('Media なし + coverImageKey あり → S3取得 → AIAdvice 保存 (mediaId=null)', async () => {
+    prisma.bonsai.findUnique.mockResolvedValueOnce({ id: 'b1', owner: 'sub1', name: 'T', coverImageKey: 'cover/b1.jpg' });
+    prisma.media.findFirst.mockResolvedValueOnce(null);
+
+    await service.createAdvice('b1', {}, 'sub1');
+
+    expect(bedrock.converse).toHaveBeenCalledTimes(1);
+    expect(prisma.aIAdvice.create).toHaveBeenCalledWith({
+      data: {
+        bonsaiId: 'b1',
+        mediaId: null,
+        diagnosis: mockDiagnosis,
+        confidence: 0.85,
+      },
+    });
+  });
+
+  it('Media なし + coverImageKey なし → BadRequestException', async () => {
+    prisma.media.findFirst.mockResolvedValueOnce(null);
+    // bonsai mock has coverImageKey: null (default)
+    await expect(service.createAdvice('b1', {}, 'sub1')).rejects.toThrow(BadRequestException);
+  });
+
+  it('BEDROCK_DIAGNOSIS_MODEL_ID が converse の modelId に渡る', async () => {
+    const origEnv = process.env.BEDROCK_DIAGNOSIS_MODEL_ID;
+    process.env.BEDROCK_DIAGNOSIS_MODEL_ID = 'test-diag-model';
+
+    const m = await Test.createTestingModule({
+      providers: [
+        AdviceService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: BedrockService, useValue: bedrock },
+      ],
+    }).compile();
+    const svc = m.get<AdviceService>(AdviceService);
+
+    await svc.createAdvice('b1', {}, 'sub1');
+
+    expect(bedrock.converse.mock.calls[0][0].modelId).toBe('test-diag-model');
+
+    process.env.BEDROCK_DIAGNOSIS_MODEL_ID = origEnv;
+  });
+
   it('Bedrock 失敗時は ServiceUnavailableException を投げ AIAdvice を保存しない', async () => {
     const throttleErr = new Error('Too many requests');
     throttleErr.name = 'ThrottlingException';
@@ -125,8 +168,9 @@ describe('AdviceService.createAdvice', () => {
     await expect(service.createAdvice('b1', { mediaId: 'm2' }, 'sub1')).rejects.toThrow(BadRequestException);
   });
 
-  it('媒体なしの場合は BadRequestException', async () => {
-    prisma.media.findMany.mockResolvedValueOnce([]);
+  it('mediaId 指定なし・Media なし・coverImageKey なしの場合は BadRequestException', async () => {
+    prisma.media.findFirst.mockResolvedValueOnce(null);
+    // default bonsai mock has coverImageKey: null
     await expect(service.createAdvice('b1', {}, 'sub1')).rejects.toThrow(BadRequestException);
   });
 });
