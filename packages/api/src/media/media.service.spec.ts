@@ -136,6 +136,32 @@ describe('MediaService', () => {
         ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
+
+    it('type=cover returns s3Key with users/{sub}/covers/ prefix', async () => {
+      (getSignedUrl as jest.Mock).mockResolvedValue('https://s3.presigned.cover');
+
+      const result = await service.presign(
+        { filename: 'cover.jpg', contentType: 'image/jpeg', type: 'cover' },
+        OWNER,
+      );
+
+      expect(result.presignedUrl).toBe('https://s3.presigned.cover');
+      expect(result.s3Key).toMatch(
+        new RegExp(`^users/${OWNER}/covers/\\d+-cover\\.jpg$`),
+      );
+    });
+
+    it('type=cover succeeds without bonsaiId', async () => {
+      (getSignedUrl as jest.Mock).mockResolvedValue('https://s3.presigned.cover');
+
+      await expect(
+        service.presign(
+          { filename: 'cover.jpg', contentType: 'image/jpeg', type: 'cover' },
+          OWNER,
+        ),
+      ).resolves.toBeDefined();
+      expect(prisma.bonsai.findUnique).not.toHaveBeenCalled();
+    });
   });
 
   describe('createMedia', () => {

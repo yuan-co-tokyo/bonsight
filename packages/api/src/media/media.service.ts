@@ -23,9 +23,14 @@ export class MediaService {
   }
 
   async presign(dto: PresignRequestDto, sub: string) {
-    await this.verifyBonsaiOwner(dto.bonsaiId, sub);
     const timestamp = Date.now();
-    const s3Key = `users/${sub}/bonsai/${dto.bonsaiId}/${timestamp}-${dto.filename}`;
+    let s3Key: string;
+    if (dto.type === 'cover') {
+      s3Key = `users/${sub}/covers/${timestamp}-${dto.filename}`;
+    } else {
+      await this.verifyBonsaiOwner(dto.bonsaiId!, sub);
+      s3Key = `users/${sub}/bonsai/${dto.bonsaiId}/${timestamp}-${dto.filename}`;
+    }
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: s3Key,

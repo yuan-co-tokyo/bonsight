@@ -14,6 +14,7 @@ export interface BonsaiDto {
   style?: string;
   currentState?: string;
   coverImageKey?: string;
+  coverImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
