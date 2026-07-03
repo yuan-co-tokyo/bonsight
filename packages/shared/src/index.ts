@@ -105,3 +105,32 @@ export interface PagedResponse<T> {
   page: number;
   limit: number;
 }
+
+export type CareType =
+  | 'WATERING'
+  | 'FERTILIZING'
+  | 'PRUNING'
+  | 'WIRING'
+  | 'REPOTTING'
+  | 'PEST_CONTROL';
+
+export interface CareLogDto {
+  id: string;
+  bonsaiId: string;
+  type: CareType;
+  date: string;
+  memo?: string;
+  createdAt: string;
+}
+
+export interface CreateCareLogDto {
+  type: CareType;
+  date: string;
+  memo?: string;
+}
+
+export interface UpdateCareLogDto {
+  type?: CareType;
+  date?: string;
+  memo?: string;
+}

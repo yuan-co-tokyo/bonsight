@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { BonsaiDto } from 'shared'
+import type { BonsaiDto, CareLogDto, CareType } from 'shared'
 import { getBonsai } from '../api/bonsaiApi'
 import { getMedia, type MediaDtoEx } from '../api/mediaApi'
+import { getCareLogsApi, createCareLogApi, updateCareLogApi, deleteCareLogApi } from '../api/careLogApi'
 import BonsightShell from '../components/BonsightShell'
 import Button from '../components/Button'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
@@ -170,11 +171,93 @@ function TimelineCard({
   )
 }
 
+const CARE_TYPE_LABEL: Record<CareType, string> = {
+  WATERING: '水やり',
+  FERTILIZING: '施肥',
+  PRUNING: '剪定',
+  WIRING: '針金',
+  REPOTTING: '植替え',
+  PEST_CONTROL: '防除',
+}
+
+const CARE_TYPE_ICON: Record<CareType, string> = {
+  WATERING: '💧',
+  FERTILIZING: '🌱',
+  PRUNING: '✂️',
+  WIRING: '🔧',
+  REPOTTING: '🪴',
+  PEST_CONTROL: '🛡️',
+}
+
+const CARE_TYPE_OPTIONS: CareType[] = [
+  'WATERING',
+  'FERTILIZING',
+  'PRUNING',
+  'WIRING',
+  'REPOTTING',
+  'PEST_CONTROL',
+]
+
+function CareLogCard({
+  careLog,
+  onEdit,
+  onDelete,
+}: {
+  careLog: CareLogDto
+  onEdit: (careLog: CareLogDto) => void
+  onDelete: (id: string) => void
+}) {
+  return (
+    <div
+      className="timeline-carelog-card"
+      style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 14,
+        marginBottom: 16,
+        padding: '12px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="carelog-icon" style={{ fontSize: 20 }}>{CARE_TYPE_ICON[careLog.type]}</span>
+        <span className="carelog-label" style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>
+          {CARE_TYPE_LABEL[careLog.type]}
+        </span>
+        <span className="carelog-date" style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>
+          {new Date(careLog.date).toLocaleDateString('ja-JP')}
+        </span>
+      </div>
+      {careLog.memo && (
+        <p className="carelog-memo" style={{ fontSize: 13, color: 'var(--color-ink)', margin: 0, lineHeight: 1.5 }}>
+          {careLog.memo}
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <button
+          onClick={() => onEdit(careLog)}
+          style={{ fontSize: 12, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          編集
+        </button>
+        <button
+          onClick={() => onDelete(careLog.id)}
+          style={{ fontSize: 12, color: 'var(--status-danger-text)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          削除
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function EmptyTimeline({ onAdd }: { onAdd: () => void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 16px', gap: 12 }}>
       <CameraIcon />
-      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>まだ写真がありません</p>
+      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>まだ記録がありません</p>
       <button
         onClick={onAdd}
         style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -185,13 +268,26 @@ function EmptyTimeline({ onAdd }: { onAdd: () => void }) {
   )
 }
 
+type TimelineItem =
+  | { kind: 'media'; item: MediaDtoEx }
+  | { kind: 'carelog'; item: CareLogDto }
+
 export default function S3Detail() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [bonsai, setBonsai] = useState<BonsaiDto | null>(null)
   const [mediaList, setMediaList] = useState<MediaDtoEx[]>([])
+  const [careLogList, setCareLogList] = useState<CareLogDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+
+  const [showCareForm, setShowCareForm] = useState(false)
+  const [careFormData, setCareFormData] = useState<{ type: CareType; date: string; memo: string }>({
+    type: 'WATERING',
+    date: new Date().toISOString().slice(0, 10),
+    memo: '',
+  })
+  const [editingCareLog, setEditingCareLog] = useState<CareLogDto | null>(null)
 
   useEffect(() => {
     if (!id) {
@@ -206,19 +302,20 @@ export default function S3Detail() {
       setLoading(true)
       setError(false)
       try {
-        const [data, media] = await Promise.all([
+        const [data, media, careLogs] = await Promise.all([
           getBonsai(bonsaiId),
           getMedia(bonsaiId),
+          getCareLogsApi(bonsaiId),
         ])
         if (!ignore) {
           setBonsai(data)
-          // 撮影日昇順
           const sorted = [...media].sort((a, b) => {
             const ta = a.takenAt ? new Date(a.takenAt).getTime() : new Date(a.createdAt).getTime()
             const tb = b.takenAt ? new Date(b.takenAt).getTime() : new Date(b.createdAt).getTime()
             return ta - tb
           })
           setMediaList(sorted)
+          setCareLogList(careLogs)
         }
       } catch {
         if (!ignore) setError(true)
@@ -232,6 +329,35 @@ export default function S3Detail() {
       ignore = true
     }
   }, [id])
+
+  const fetchCareLogs = async (bonsaiId: string) => {
+    const careLogs = await getCareLogsApi(bonsaiId)
+    setCareLogList(careLogs)
+  }
+
+  const handleSaveCareLog = async () => {
+    if (!id) return
+    if (editingCareLog) {
+      await updateCareLogApi(id, editingCareLog.id, careFormData)
+    } else {
+      await createCareLogApi(id, careFormData)
+    }
+    setShowCareForm(false)
+    setEditingCareLog(null)
+    await fetchCareLogs(id)
+  }
+
+  const handleEditCareLog = (careLog: CareLogDto) => {
+    setEditingCareLog(careLog)
+    setCareFormData({ type: careLog.type, date: careLog.date.slice(0, 10), memo: careLog.memo ?? '' })
+    setShowCareForm(true)
+  }
+
+  const handleDeleteCareLog = async (logId: string) => {
+    if (!id) return
+    await deleteCareLogApi(id, logId)
+    await fetchCareLogs(id)
+  }
 
   if (loading) {
     return (
@@ -257,6 +383,21 @@ export default function S3Detail() {
 
   const hasPhoto = mediaList.length > 0 || !!bonsai.coverImageUrl
 
+  const timeline: TimelineItem[] = [
+    ...mediaList.map((item) => ({ kind: 'media' as const, item })),
+    ...careLogList.map((item) => ({ kind: 'carelog' as const, item })),
+  ].sort((a, b) => {
+    const dateA = a.kind === 'media'
+      ? (a.item.takenAt ?? a.item.createdAt)
+      : a.item.date
+    const dateB = b.kind === 'media'
+      ? (b.item.takenAt ?? b.item.createdAt)
+      : b.item.date
+    return new Date(dateA).getTime() - new Date(dateB).getTime()
+  })
+
+  const isEmpty = timeline.length === 0
+
   return (
     <BonsightShell
       screen="S3"
@@ -266,7 +407,7 @@ export default function S3Detail() {
       contextAction={{ label: '編集', onClick: () => navigate(`/bonsai/${bonsai.id}/edit`) }}
     >
       <article className="s3-detail">
-        {/* S3-F8: hero (表紙写真またはプレースホルダ) */}
+        {/* hero */}
         {bonsai.coverImageUrl ? (
           <img
             className="s3-hero"
@@ -281,7 +422,7 @@ export default function S3Detail() {
           </div>
         )}
 
-        {/* S3-F3: 名前+樹種ブロック */}
+        {/* 名前+樹種ブロック */}
         <div className="s3-bonsai-name-block" style={{ padding: '16px 16px 8px' }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--color-ink)', margin: 0 }}>
             {displayName(bonsai)}
@@ -291,17 +432,23 @@ export default function S3Detail() {
           </p>
         </div>
 
-        {/* S3-F4: チップ */}
+        {/* チップ */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 16px 16px' }}>
           <Chip icon={<CalendarIcon />} label={displayAge(bonsai)} />
           <Chip icon={<TreeIcon />} label={bonsai.style ?? '樹形未設定'} />
           <Chip icon={<ShoppingBagIcon />} label={bonsai.acquiredAt ?? '入手日未設定'} />
         </div>
 
-        {/* S3-F5: アクションボタン */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
+        {/* アクションボタン */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
           <Button variant="primary" onClick={() => navigate(`/bonsai/${bonsai.id}/photo`)}>
             <CameraIcon /> 写真を追加
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => { setEditingCareLog(null); setCareFormData({ type: 'WATERING', date: new Date().toISOString().slice(0, 10), memo: '' }); setShowCareForm(true) }}
+          >
+            世話を記録
           </Button>
           <Button
             variant="secondary"
@@ -313,20 +460,98 @@ export default function S3Detail() {
           </Button>
         </div>
 
+        {/* 世話を記録フォーム */}
+        {showCareForm && (
+          <div
+            style={{
+              margin: '0 16px 16px',
+              padding: 16,
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 12,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>
+              {editingCareLog ? '世話を編集' : '世話を記録'}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>種別</label>
+              <select
+                value={careFormData.type}
+                onChange={(e) => setCareFormData(prev => ({ ...prev, type: e.target.value as CareType }))}
+                style={{ fontSize: 14, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg)' }}
+              >
+                {CARE_TYPE_OPTIONS.map(t => (
+                  <option key={t} value={t}>{CARE_TYPE_ICON[t]} {CARE_TYPE_LABEL[t]}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>日付</label>
+              <input
+                type="date"
+                value={careFormData.date}
+                onChange={(e) => setCareFormData(prev => ({ ...prev, date: e.target.value }))}
+                style={{ fontSize: 14, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>メモ（任意）</label>
+              <textarea
+                value={careFormData.memo}
+                onChange={(e) => setCareFormData(prev => ({ ...prev, memo: e.target.value }))}
+                rows={3}
+                placeholder="作業メモを入力..."
+                style={{ fontSize: 14, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg)', resize: 'vertical' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => void handleSaveCareLog()}
+                style={{ flex: 1, padding: '8px 0', background: 'var(--color-accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                保存
+              </button>
+              <button
+                onClick={() => { setShowCareForm(false); setEditingCareLog(null) }}
+                style={{ flex: 1, padding: '8px 0', background: 'none', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
+
         <section style={{ padding: '0 16px 24px' }}>
-          {/* S3-F7: 見出し「成長タイムライン」+ 枚数/期間 */}
+          {/* 見出し「成長タイムライン」+ 枚数/期間 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
             <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)', margin: 0 }}>成長タイムライン</h2>
             <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
               {mediaList.length}枚 · {monthSpan(mediaList)}ヶ月
             </span>
           </div>
-          {mediaList.length === 0 ? (
+          {isEmpty ? (
             <EmptyTimeline onAdd={() => navigate(`/bonsai/${bonsai.id}/photo`)} />
           ) : (
-            mediaList.map((m, i) => (
-              <TimelineCard key={m.id} media={m} onClick={() => handleThumbnailClick(i)} />
-            ))
+            timeline.map((entry) =>
+              entry.kind === 'media' ? (
+                <TimelineCard
+                  key={entry.item.id}
+                  media={entry.item}
+                  onClick={() => handleThumbnailClick(mediaList.indexOf(entry.item))}
+                />
+              ) : (
+                <CareLogCard
+                  key={entry.item.id}
+                  careLog={entry.item}
+                  onEdit={handleEditCareLog}
+                  onDelete={(logId) => void handleDeleteCareLog(logId)}
+                />
+              )
+            )
           )}
         </section>
       </article>
