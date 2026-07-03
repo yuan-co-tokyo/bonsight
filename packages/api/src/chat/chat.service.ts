@@ -1,13 +1,119 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { IsNotEmpty, IsString } from 'class-validator';
+import { PrismaService } from '../prisma/prisma.service';
+import { BedrockService } from '../bedrock/bedrock.service';
 
 export class ChatRequestDto {
-  message!: string;
+  @IsString() @IsNotEmpty() message!: string;
+}
+
+function getSeason(month: number): string {
+  if (month <= 2) return '冬';
+  if (month <= 5) return '春';
+  if (month <= 8) return '夏';
+  return '秋';
+}
+
+function mapBedrockError(err: any): never {
+  const name = err?.name ?? '';
+  if (name === 'ResourceNotFoundException') {
+    Logger.warn(`Bedrock ResourceNotFoundException: ${err.message}`, 'ChatService');
+    throw new ServiceUnavailableException('AIチャットサービスが利用できません');
+  }
+  if (name === 'ThrottlingException') {
+    throw new ServiceUnavailableException('AIチャットサービスが混雑しています。しばらく後に再試行してください');
+  }
+  if (name === 'AccessDeniedException') {
+    Logger.error(`Bedrock AccessDeniedException: ${err.message}`, 'ChatService');
+    throw new InternalServerErrorException('AIチャットサービスへのアクセスが拒否されました');
+  }
+  if (name === 'ValidationException') {
+    throw new BadRequestException(`AIチャットリクエストが無効です: ${err.message}`);
+  }
+  Logger.error(`Bedrock unknown error: ${name} ${err.message}`, 'ChatService');
+  throw new ServiceUnavailableException('AIチャットサービスが利用できません');
 }
 
 @Injectable()
 export class ChatService {
-  chat(bonsaiId: string, chatRequestDto: ChatRequestDto) {
-    // TODO: Bedrock未結線
-    return { bonsaiId, message: chatRequestDto.message };
+  private readonly chatModelId =
+    process.env.BEDROCK_CHAT_MODEL_ID ?? process.env.BEDROCK_MODEL_ID!;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bedrock: BedrockService,
+  ) {}
+
+  private async verifyBonsaiOwner(bonsaiId: string, sub: string) {
+    const bonsai = await this.prisma.bonsai.findUnique({ where: { id: bonsaiId } });
+    if (!bonsai) throw new NotFoundException(`Bonsai ${bonsaiId} not found`);
+    if (bonsai.owner !== sub) throw new ForbiddenException();
+    return bonsai;
+  }
+
+  async chatGeneral(dto: ChatRequestDto, sub: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({ where: { cognitoSub: sub } });
+    const season = getSeason(new Date().getMonth());
+
+    const systemPrompt = `あなたは盆栽の専門家AIアシスタントです。
+ユーザーの地域: ${user?.region ?? '不明'}
+現在の季節: ${season}
+盆栽の世話について、丁寧かつ具体的にアドバイスしてください。
+断定的な診断は避け、不確実な情報は「参考として」と前置きしてください。
+免責: このアドバイスは参考情報です。専門家・樹医の診断の代替ではありません。`;
+
+    let res: any;
+    try {
+      res = await this.bedrock.converse({
+        system: [{ text: systemPrompt }],
+        messages: [{ role: 'user', content: [{ text: dto.message }] }],
+        maxTokens: 1024,
+        modelId: this.chatModelId,
+      });
+    } catch (err) {
+      mapBedrockError(err);
+    }
+    return {
+      message: res.output.message.content.find((c: any) => c.text)?.text ?? '',
+    };
+  }
+
+  async chat(bonsaiId: string, dto: ChatRequestDto, sub: string) {
+    const bonsai = await this.verifyBonsaiOwner(bonsaiId, sub);
+
+    const user = await this.prisma.user.findFirst({ where: { cognitoSub: sub } });
+
+    const season = getSeason(new Date().getMonth());
+
+    const systemPrompt = `あなたは盆栽の手入れに詳しい相談相手です。以下の文脈を踏まえて回答してください。
+- 盆栽の名前: ${bonsai.name}
+- 樹種: ${bonsai.species ?? '不明'}
+- 利用者の地域: ${user?.region ?? '不明'}
+- 現在の季節: ${season}
+重要: あなたの回答は参考情報です。断定せず、「〜の可能性があります」等のヘッジ表現を用い、
+不確実な点は正直に伝えてください。専門的・重大な問題は樹医や専門店への相談を促してください。`;
+
+    let res: any;
+    try {
+      res = await this.bedrock.converse({
+        system: [{ text: systemPrompt }],
+        messages: [{ role: 'user', content: [{ text: dto.message }] }],
+        maxTokens: 1024,
+        modelId: this.chatModelId,
+      });
+    } catch (err) {
+      mapBedrockError(err);
+    }
+
+    const text = res.output.message.content.find((c: any) => c.text)?.text ?? '';
+    return { message: text };
   }
 }

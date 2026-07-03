@@ -255,6 +255,8 @@ export default function S3Detail() {
     })
   }
 
+  const hasPhoto = mediaList.length > 0 || !!bonsai.coverImageUrl
+
   return (
     <BonsightShell
       screen="S3"
@@ -301,7 +303,12 @@ export default function S3Detail() {
           <Button variant="primary" onClick={() => navigate(`/bonsai/${bonsai.id}/photo`)}>
             <CameraIcon /> 写真を追加
           </Button>
-          <Button variant="secondary" onClick={() => navigate(`/bonsai/${bonsai.id}/ai`)}>
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`/bonsai/${bonsai.id}/ai`)}
+            disabled={!hasPhoto}
+            title={!hasPhoto ? 'まず写真を追加してください' : undefined}
+          >
             <SparkleIcon /> AIに診てもらう
           </Button>
         </div>

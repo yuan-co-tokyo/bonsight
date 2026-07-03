@@ -1,8 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
-import PhotoPlaceholder from '../components/PhotoPlaceholder'
-import { STUB_CHAT_MESSAGES, STUB_CONTEXT, type ChatMessage } from '../stubs/stubChat'
+import { sendChat, sendChatGeneral } from '../api/adviceApi'
+
+interface ChatMessage {
+  id: string
+  role: 'ai' | 'user'
+  content: string
+  timestamp: string
+}
 
 function SparkleIconGold() {
   return (
@@ -16,16 +22,6 @@ function SendArrowIcon({ color }: { color: string }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M12 19V5M5 12L12 5L19 12" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function CameraSmallIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="7" width="20" height="14" rx="2" stroke="#9A938A" strokeWidth="1.6" />
-      <circle cx="12" cy="14" r="3.5" stroke="#9A938A" strokeWidth="1.5" />
-      <path d="M8 7l1.5-3h5L16 7" stroke="#9A938A" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -104,17 +100,23 @@ function TypingIndicator() {
 
 export default function S6AiChat() {
   const navigate = useNavigate()
-  const [messages, setMessages] = useState<ChatMessage[]>(STUB_CHAT_MESSAGES)
+  const location = useLocation()
+  const { bonsaiId, bonsaiName, species } = (location.state ?? {}) as {
+    bonsaiId?: string
+    bonsaiName?: string
+    species?: string
+  }
+
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const ctx = STUB_CONTEXT
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputText.trim()) return
     const userContent = inputText.trim()
     const userMsg: ChatMessage = {
@@ -123,19 +125,35 @@ export default function S6AiChat() {
       content: userContent,
       timestamp: new Date().toISOString(),
     }
-    setMessages(prev => [...prev, userMsg])
+    setMessages((prev) => [...prev, userMsg])
     setInputText('')
     setIsTyping(true)
-    setTimeout(() => {
+
+    try {
+      let res: { message: string }
+      if (bonsaiId) {
+        res = await sendChat(bonsaiId, userContent)
+      } else {
+        res = await sendChatGeneral(userContent)
+      }
       setIsTyping(false)
       const aiMsg: ChatMessage = {
         id: `a${Date.now()}`,
         role: 'ai',
-        content: `承知しました。${userContent.substring(0, 10)}について、詳しくお答えします。\n（※ AI応答はスタブ表示です。後続cmdでBedrock結線後に差替えます。）`,
+        content: res.message,
         timestamp: new Date().toISOString(),
       }
-      setMessages(prev => [...prev, aiMsg])
-    }, 1500)
+      setMessages((prev) => [...prev, aiMsg])
+    } catch {
+      setIsTyping(false)
+      const errMsg: ChatMessage = {
+        id: `e${Date.now()}`,
+        role: 'ai',
+        content: 'ただいま混み合っています。後ほど再試行してください。',
+        timestamp: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev, errMsg])
+    }
   }
 
   return (
@@ -163,15 +181,28 @@ export default function S6AiChat() {
             flexShrink: 0,
           }}
         >
-          <div style={{ width: 30, height: 30, borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
-            <PhotoPlaceholder label={ctx.speciesJa} />
-          </div>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-ink)' }}>
-            {ctx.bonsaiName}
+            {bonsaiName ?? 'AI相談'}
           </span>
-          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-            · {ctx.speciesJa} · {ctx.region} · {ctx.season}
-          </span>
+          {species && (
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+              · {species}
+            </span>
+          )}
+        </div>
+
+        {/* 免責テキスト */}
+        <div
+          style={{
+            background: '#FAF9F6',
+            borderBottom: '1px solid #EDEBE6',
+            padding: '8px 16px',
+            flexShrink: 0,
+          }}
+        >
+          <p style={{ fontSize: 11, color: '#9A938A', margin: 0, lineHeight: 1.5 }}>
+            ※ AIの回答は参考情報です。専門家・樹医の診断の代替ではありません。
+          </p>
         </div>
 
         {/* メッセージ列 */}
@@ -186,7 +217,7 @@ export default function S6AiChat() {
             gap: 14,
           }}
         >
-          {messages.map(msg =>
+          {messages.map((msg) =>
             msg.role === 'ai'
               ? <AiBubble key={msg.id} msg={msg} />
               : <UserBubble key={msg.id} msg={msg} />
@@ -208,20 +239,6 @@ export default function S6AiChat() {
             flexShrink: 0,
           }}
         >
-          <button
-            className="s6-attach-btn"
-            style={{
-              width: 36, height: 36, borderRadius: 18,
-              border: '1px solid #E5E3DD',
-              background: '#fff',
-              flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-            aria-label="写真を添付"
-          >
-            <CameraSmallIcon />
-          </button>
           <div style={{
             flex: 1, background: '#F5F4F1',
             border: '1px solid #E5E3DD',
@@ -230,8 +247,13 @@ export default function S6AiChat() {
             <input
               placeholder="メッセージを入力…"
               value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault()
+                  void handleSend()
+                }
+              }}
               style={{
                 width: '100%', border: 'none', outline: 'none',
                 background: 'transparent', fontSize: 15,
@@ -240,14 +262,14 @@ export default function S6AiChat() {
             />
           </div>
           <button
-            onClick={handleSend}
-            disabled={!inputText.trim()}
+            onClick={() => { void handleSend() }}
+            disabled={!inputText.trim() || isTyping}
             style={{
               width: 38, height: 38, borderRadius: 19,
-              background: inputText.trim() ? '#5C7A52' : '#D6D3CB',
+              background: inputText.trim() && !isTyping ? '#5C7A52' : '#D6D3CB',
               border: 'none', flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: inputText.trim() ? 'pointer' : 'default',
+              cursor: inputText.trim() && !isTyping ? 'pointer' : 'default',
             }}
             aria-label="送信"
           >

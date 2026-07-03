@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { CognitoAuthGuard } from '../auth/cognito-auth.guard';
 import { AdviceService, CreateAdviceDto } from './advice.service';
 
@@ -10,13 +10,14 @@ export class AdviceController {
   @Post()
   createAdvice(
     @Param('bonsaiId') bonsaiId: string,
-    @Body() createAdviceDto: CreateAdviceDto,
+    @Body() dto: CreateAdviceDto,
+    @Req() req: any,
   ) {
-    return this.adviceService.createAdvice(bonsaiId, createAdviceDto);
+    return this.adviceService.createAdvice(bonsaiId, dto, req.user.sub);
   }
 
   @Get()
-  getAdvices(@Param('bonsaiId') bonsaiId: string) {
-    return this.adviceService.getAdvices(bonsaiId);
+  getAdvices(@Param('bonsaiId') bonsaiId: string, @Req() req: any) {
+    return this.adviceService.getAdvices(bonsaiId, req.user.sub);
   }
 }

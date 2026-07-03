@@ -119,7 +119,12 @@ describe('S4Upload', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(
         '/bonsai/b1/ai',
-        expect.objectContaining({ state: { mediaId: 'media-1' } }),
+        expect.objectContaining({
+          state: expect.objectContaining({
+            mediaId: 'media-1',
+            mediaUrl: 'https://cdn.example.com/users/sub/bonsai/b1/ts-photo.jpg',
+          }),
+        }),
       )
     })
   })
