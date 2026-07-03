@@ -23,6 +23,15 @@ enum MediaType {
   VIDEO
 }
 
+enum CareType {
+  WATERING
+  FERTILIZING
+  PRUNING
+  WIRING
+  REPOTTING
+  PEST_CONTROL
+}
+
 model User {
   id          String   @id @default(cuid())
   cognitoSub  String   @unique // TODO: Cognito sub - 未結線(cmd_019以降)
@@ -54,6 +63,7 @@ model Bonsai {
   user          User?            @relation(fields: [userId], references: [id])
   media         Media[]
   aiAdvices     AIAdvice[]
+  careLogs      CareLog[]
 }
 
 model Media {
@@ -75,4 +85,15 @@ model AIAdvice {
   diagnosis  Json // TODO: Bedrock未結線(cmd_019以降)
   confidence Float?
   createdAt  DateTime @default(now())
+}
+
+model CareLog {
+  id        String   @id @default(cuid())
+  bonsaiId  String
+  type      CareType
+  date      DateTime
+  memo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  bonsai    Bonsai   @relation(fields: [bonsaiId], references: [id], onDelete: Cascade)
 }
