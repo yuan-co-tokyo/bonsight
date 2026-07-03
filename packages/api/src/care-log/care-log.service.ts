@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
-import { CareType } from '../../generated/prisma';
+import { CareType } from '../prisma/prisma-types';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class CreateCareLogDto {
