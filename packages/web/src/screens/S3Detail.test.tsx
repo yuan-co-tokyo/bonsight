@@ -1,12 +1,16 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S3Detail from './S3Detail'
 
-const { mockNavigate, mockGetBonsai, mockGetMedia } = vi.hoisted(() => ({
+const { mockNavigate, mockGetBonsai, mockGetMedia, mockGetCareLogs, mockCreateCareLog, mockDeleteCareLog, mockUpdateCareLog } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockGetBonsai: vi.fn(),
   mockGetMedia: vi.fn(),
+  mockGetCareLogs: vi.fn(),
+  mockCreateCareLog: vi.fn(),
+  mockDeleteCareLog: vi.fn(),
+  mockUpdateCareLog: vi.fn(),
 }))
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -17,6 +21,12 @@ vi.mock('../api/bonsaiApi', () => ({
 }))
 vi.mock('../api/mediaApi', () => ({
   getMedia: mockGetMedia,
+}))
+vi.mock('../api/careLogApi', () => ({
+  getCareLogsApi: mockGetCareLogs,
+  createCareLogApi: mockCreateCareLog,
+  updateCareLogApi: mockUpdateCareLog,
+  deleteCareLogApi: mockDeleteCareLog,
 }))
 
 function bonsaiFixture(id: string) {
@@ -60,6 +70,19 @@ function mediaFixture(bonsaiId: string) {
   ]
 }
 
+function careLogFixture(bonsaiId: string) {
+  return [
+    {
+      id: 'cl1',
+      bonsaiId,
+      type: 'WATERING' as const,
+      date: '2026-03-10T00:00:00.000Z',
+      memo: '朝水やり',
+      createdAt: '2026-03-10T00:00:00.000Z',
+    },
+  ]
+}
+
 function renderS3Detail(id: string) {
   return render(
     <MemoryRouter initialEntries={[`/bonsai/${id}`]}>
@@ -75,8 +98,13 @@ describe('S3Detail', () => {
     mockNavigate.mockReset()
     mockGetBonsai.mockReset()
     mockGetMedia.mockReset()
+    mockGetCareLogs.mockReset()
+    mockCreateCareLog.mockReset()
+    mockUpdateCareLog.mockReset()
+    mockDeleteCareLog.mockReset()
     mockGetBonsai.mockImplementation((id: string) => Promise.resolve(bonsaiFixture(id)))
     mockGetMedia.mockResolvedValue([])
+    mockGetCareLogs.mockResolvedValue([])
   })
 
   it('bonsaiId b1 で名前「五葉松「翁」」が表示される', async () => {
@@ -120,10 +148,11 @@ describe('S3Detail', () => {
     expect(images[1]).toHaveAttribute('src', media[1].cloudfrontUrl)
   })
 
-  it('0枚時の空状態「まだ写真がありません」が表示される', async () => {
+  it('media・careLog 両方空の時、空状態が表示される', async () => {
     mockGetMedia.mockResolvedValue([])
+    mockGetCareLogs.mockResolvedValue([])
     renderS3Detail('b1')
-    expect(await screen.findByText('まだ写真がありません')).toBeInTheDocument()
+    expect(await screen.findByText('まだ記録がありません')).toBeInTheDocument()
   })
 
   it('coverImageUrlありのとき hero <img> が表示される', async () => {
@@ -190,5 +219,49 @@ describe('S3Detail', () => {
         state: expect.objectContaining({ mediaList: media, initialIndex: 0 }),
       }),
     )
+  })
+
+  // CareLog テスト
+
+  it('「世話を記録」ボタンが表示される', async () => {
+    renderS3Detail('b1')
+    expect(await screen.findByRole('button', { name: '世話を記録' })).toBeInTheDocument()
+  })
+
+  it('careLogList が空の時、世話ログカードは表示されない', async () => {
+    mockGetCareLogs.mockResolvedValue([])
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+    expect(screen.queryByText('水やり')).toBeNull()
+  })
+
+  it('careLogList に1件あるとき CARE_TYPE_LABEL (水やり) が表示される', async () => {
+    mockGetCareLogs.mockResolvedValue(careLogFixture('b1'))
+    renderS3Detail('b1')
+    expect(await screen.findByText('水やり')).toBeInTheDocument()
+  })
+
+  it('careLogカードのメモが表示される', async () => {
+    mockGetCareLogs.mockResolvedValue(careLogFixture('b1'))
+    renderS3Detail('b1')
+    expect(await screen.findByText('朝水やり')).toBeInTheDocument()
+  })
+
+  it('「世話を記録」ボタンクリックでフォームが表示される', async () => {
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+    fireEvent.click(screen.getByRole('button', { name: '世話を記録' }))
+    expect(await screen.findByRole('heading', { name: '世話を記録', level: 3 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'キャンセル' })).toBeInTheDocument()
+  })
+
+  it('フォームの「キャンセル」でフォームが閉じる', async () => {
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+    fireEvent.click(screen.getByRole('button', { name: '世話を記録' }))
+    expect(await screen.findByRole('button', { name: 'キャンセル' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: '保存' })).toBeNull())
   })
 })
