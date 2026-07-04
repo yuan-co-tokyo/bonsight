@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import type { MediaDtoEx } from '../api/mediaApi'
+import { deleteMedia } from '../api/mediaApi'
 
 function formatDateJa(isoDate: string): string {
   const d = new Date(isoDate)
@@ -27,11 +28,19 @@ export default function S7Viewer() {
 
   const mediaList: MediaDtoEx[] = state?.mediaList ?? []
   const [currentIndex, setCurrentIndex] = useState(state?.initialIndex ?? 0)
+  const [showDeletePhotoDialog, setShowDeletePhotoDialog] = useState(false)
 
   const currentMedia = mediaList[currentIndex]
 
   const goPrev = () => { if (currentIndex > 0) setCurrentIndex(i => i - 1) }
   const goNext = () => { if (currentIndex < mediaList.length - 1) setCurrentIndex(i => i + 1) }
+
+  const handleDeletePhoto = async () => {
+    if (!currentMedia) return
+    setShowDeletePhotoDialog(false)
+    await deleteMedia(currentMedia.bonsaiId, currentMedia.id)
+    navigate(`/bonsai/${currentMedia.bonsaiId}`, { replace: true })
+  }
 
   if (!currentMedia) {
     return (
@@ -82,7 +91,23 @@ export default function S7Viewer() {
         <span style={{ fontSize: 14, fontWeight: 500, color: '#EDEBE6' }}>
           {currentIndex + 1} / {mediaList.length}
         </span>
-        <div style={{ width: 40 }} />
+        <button
+          onClick={() => setShowDeletePhotoDialog(true)}
+          style={{
+            width: 40, height: 40, borderRadius: 20,
+            background: 'rgba(0,0,0,0.4)', border: 'none',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          aria-label="写真を削除"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EDEBE6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+          </svg>
+        </button>
       </div>
 
       {/* メイン写真エリア */}
@@ -170,6 +195,78 @@ export default function S7Viewer() {
           この写真をAIに診てもらう
         </button>
       </div>
+
+      {/* 写真削除確認ダイアログ */}
+      {showDeletePhotoDialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-photo-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1100,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: '#2A2A27',
+              borderRadius: 16,
+              padding: 24,
+              width: '100%',
+              maxWidth: 320,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+            }}
+          >
+            <h3 id="delete-photo-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#EDEBE6' }}>
+              この写真を削除しますか？
+            </h3>
+            <p style={{ margin: 0, fontSize: 13, color: 'rgba(237,235,230,.65)', lineHeight: 1.6 }}>
+              診断データも削除されます。
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setShowDeletePhotoDialog(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  background: 'none',
+                  border: '1px solid rgba(237,235,230,.3)',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  color: 'rgba(237,235,230,.65)',
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => void handleDeletePhoto()}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  background: '#C0392B',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                削除する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

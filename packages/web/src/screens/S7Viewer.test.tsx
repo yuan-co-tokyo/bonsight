@@ -1,14 +1,20 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S7Viewer from './S7Viewer'
 import type { MediaDtoEx } from '../api/mediaApi'
 
-const mockNavigate = vi.hoisted(() => vi.fn())
+const { mockNavigate, mockDeleteMedia } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+  mockDeleteMedia: vi.fn(),
+}))
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
   return { ...actual, useNavigate: () => mockNavigate }
 })
+vi.mock('../api/mediaApi', () => ({
+  deleteMedia: mockDeleteMedia,
+}))
 
 const mediaList: MediaDtoEx[] = [
   {
@@ -49,7 +55,10 @@ function renderS7(options: { mediaList?: MediaDtoEx[]; initialIndex?: number; me
 }
 
 describe('S7Viewer', () => {
-  beforeEach(() => mockNavigate.mockReset())
+  beforeEach(() => {
+    mockNavigate.mockReset()
+    mockDeleteMedia.mockResolvedValue(undefined)
+  })
 
   it('mediaListの最初のエントリの写真がimg srcとして表示される', () => {
     renderS7({ initialIndex: 0 })
@@ -101,5 +110,35 @@ describe('S7Viewer', () => {
   it('カウンター表示が正しい(1 / 2)', () => {
     renderS7({ initialIndex: 0 })
     expect(screen.getByText('1 / 2')).toBeInTheDocument()
+  })
+
+  // 写真削除テスト
+
+  it('「写真を削除」ボタンが表示される', () => {
+    renderS7({ initialIndex: 0 })
+    expect(screen.getByRole('button', { name: '写真を削除' })).toBeInTheDocument()
+  })
+
+  it('削除ボタンクリックで確認ダイアログが表示され、キャンセルで閉じる', async () => {
+    renderS7({ initialIndex: 0 })
+
+    fireEvent.click(screen.getByRole('button', { name: '写真を削除' }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('診断データも削除されます。')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(mockDeleteMedia).not.toHaveBeenCalled()
+  })
+
+  it('確認ダイアログで「削除する」クリック → deleteMediaが呼ばれS3Detail(/bonsai/b1)へ遷移する', async () => {
+    renderS7({ initialIndex: 0 })
+
+    fireEvent.click(screen.getByRole('button', { name: '写真を削除' }))
+    await screen.findByRole('dialog')
+
+    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+    await waitFor(() => expect(mockDeleteMedia).toHaveBeenCalledWith('b1', 'm1'))
+    expect(mockNavigate).toHaveBeenCalledWith('/bonsai/b1', { replace: true })
   })
 })

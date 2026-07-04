@@ -40,3 +40,7 @@ export async function updateBonsai(
     body: JSON.stringify(dto),
   })
 }
+
+export async function deleteBonsai(id: string): Promise<void> {
+  await apiFetch<unknown>(`/bonsai/${id}`, { method: 'DELETE' })
+}
