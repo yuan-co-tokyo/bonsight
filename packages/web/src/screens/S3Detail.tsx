@@ -461,8 +461,8 @@ export default function S3Detail() {
     ...adviceList.map((item) => ({ kind: 'diagnosis' as const, item })),
   ].sort((a, b) => {
     const getDate = (entry: TimelineItem): string => {
-      if (entry.kind === 'media') return entry.item.takenAt ?? entry.item.createdAt
-      if (entry.kind === 'carelog') return entry.item.date
+      if (entry.kind === 'media') return entry.item.createdAt
+      if (entry.kind === 'carelog') return entry.item.createdAt
       return entry.item.createdAt
     }
     return new Date(getDate(b)).getTime() - new Date(getDate(a)).getTime()
