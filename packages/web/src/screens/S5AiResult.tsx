@@ -84,9 +84,10 @@ export default function S5AiResult() {
   const navigate = useNavigate()
   const { id: bonsaiId } = useParams<{ id: string }>()
   const location = useLocation()
-  const { mediaId, mediaUrl } = (location.state ?? {}) as {
+  const { mediaId, mediaUrl, advice: initialAdvice } = (location.state ?? {}) as {
     mediaId?: string
     mediaUrl?: string
+    advice?: AdviceResult
   }
 
   const [screenState, setScreenState] = useState<ScreenState>('loading')
@@ -100,6 +101,11 @@ export default function S5AiResult() {
       setScreenState('error')
       return
     }
+    if (initialAdvice) {
+      setResult(initialAdvice)
+      setScreenState('result')
+      return
+    }
     setScreenState('loading')
     createAdvice(bonsaiId, mediaId)
       .then((data) => {
@@ -110,7 +116,7 @@ export default function S5AiResult() {
         setErrorMsg(err instanceof Error ? err.message : 'AI診断に失敗しました')
         setScreenState('error')
       })
-  }, [bonsaiId, mediaId, retryKey])
+  }, [bonsaiId, mediaId, retryKey, initialAdvice])
 
   return (
     <BonsightShell
