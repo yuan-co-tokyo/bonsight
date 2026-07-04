@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { signOut } from 'aws-amplify/auth'
 import type { UserDto } from 'shared'
 import BonsightShell from '../components/BonsightShell'
 import Button from '../components/Button'
 import StatusBadge from '../components/StatusBadge'
 import { getMe, updateMe } from '../api/meApi'
+import { UserContext } from '../contexts/UserContext'
 
 function ChevronRight() {
   return (
@@ -66,6 +67,7 @@ const inputStyle: React.CSSProperties = {
 const CLIMATEZONE_OPTIONS = ['温帯', '寒帯', '亜熱帯', '熱帯', '乾燥帯']
 
 export default function S8Settings() {
+  const { refreshUser } = useContext(UserContext)
   const [user, setUser] = useState<UserDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -121,6 +123,7 @@ export default function S8Settings() {
         climatezone: editClimatezone || undefined,
       })
       setUser(updated)
+      refreshUser()
       setIsEditing(false)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)

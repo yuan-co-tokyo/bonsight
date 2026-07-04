@@ -11,6 +11,7 @@ import S5AiResult from './screens/S5AiResult'
 import S6AiChat from './screens/S6AiChat'
 import S7Viewer from './screens/S7Viewer'
 import S8Settings from './screens/S8Settings'
+import { UserProvider } from './contexts/UserContext'
 
 function AppRoutes({ authed }: { authed: boolean }) {
   if (!authed) {
@@ -92,5 +93,9 @@ export default function App() {
 
   if (authed === null) return null
 
-  return <AppRoutes authed={authed} />
+  return (
+    <UserProvider authed={authed}>
+      <AppRoutes authed={authed} />
+    </UserProvider>
+  )
 }

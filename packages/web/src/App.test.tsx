@@ -24,6 +24,7 @@ vi.mock('./screens/S5AiResult', () => ({ default: () => <div>S5AiResult</div> })
 vi.mock('./screens/S6AiChat', () => ({ default: () => <div>S6AiChat</div> }))
 vi.mock('./screens/S7Viewer', () => ({ default: () => <div>S7Viewer</div> }))
 vi.mock('./screens/S8Settings', () => ({ default: () => <div>S8Settings</div> }))
+vi.mock('./api/meApi', () => ({ getMe: vi.fn().mockResolvedValue(null) }))
 
 describe('App Hub.listen', () => {
   let capturedCallback: HubCallback
