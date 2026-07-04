@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BonsightLogo from './BonsightLogo'
+import { UserContext } from '../contexts/UserContext'
 
 export type ScreenKey = 'S0' | 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8'
 
@@ -82,6 +83,7 @@ export default function BonsightShell({
   showAvatar = true,
 }: BonsightShellProps) {
   const navigate = useNavigate()
+  const { user } = useContext(UserContext)
 
   const handleBack = onBack ?? (() => navigate(-1))
 
@@ -218,7 +220,7 @@ export default function BonsightShell({
               color: 'var(--color-accent)',
             }}
           >
-            U
+            {user?.displayName?.charAt(0).toUpperCase() ?? '?'}
           </div>
         ) : contextAction ? (
           <button

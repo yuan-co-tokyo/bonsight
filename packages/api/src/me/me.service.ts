@@ -1,9 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class UpdateUserDto {
+  @IsString()
+  @IsOptional()
   displayName?: string;
+
+  @IsString()
+  @IsOptional()
   region?: string;
+
+  @IsString()
+  @IsOptional()
   climatezone?: string;
 }
 
