@@ -162,19 +162,18 @@ describe('S3Detail', () => {
     expect(await screen.findByRole('heading', { name: '成長タイムライン', level: 2 })).toBeInTheDocument()
   })
 
-  it('getMediaが返すmediaが撮影日昇順でレンダリングされる', async () => {
+  it('タイムラインが降順(最新が上)でレンダリングされる', async () => {
     const media = mediaFixture('b1')
-    // 降順で返しても昇順に並ぶことを確認
-    mockGetMedia.mockResolvedValue([media[1], media[0]])
+    mockGetMedia.mockResolvedValue([media[0], media[1]])
 
     renderS3Detail('b1')
     await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
 
     const images = screen.getAllByRole('img')
-    // 最初の画像が takenAt 早い方 (m1: 2026-01)
-    expect(images[0]).toHaveAttribute('src', media[0].cloudfrontUrl)
-    // 2番目が m2 (2026-06)
-    expect(images[1]).toHaveAttribute('src', media[1].cloudfrontUrl)
+    // 最初の画像が takenAt 新しい方 (m2: 2026-06)
+    expect(images[0]).toHaveAttribute('src', media[1].cloudfrontUrl)
+    // 2番目が m1 (2026-01)
+    expect(images[1]).toHaveAttribute('src', media[0].cloudfrontUrl)
   })
 
   it('media・careLog 両方空の時、空状態が表示される', async () => {
@@ -238,14 +237,14 @@ describe('S3Detail', () => {
     renderS3Detail('b1')
     await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
 
-    // 最初のタイムラインカード（clickableなrole=button）をクリック
+    // 降順タイムラインで最初に表示されるカードは最新 (m2: 2026-06)
     const cards = screen.getAllByRole('button', { name: /\d+年/ })
     fireEvent.click(cards[0])
 
     expect(mockNavigate).toHaveBeenCalledWith(
-      `/s7/${media[0].id}`,
+      `/s7/${media[1].id}`,
       expect.objectContaining({
-        state: expect.objectContaining({ mediaList: media, initialIndex: 0 }),
+        state: expect.objectContaining({ mediaList: media, initialIndex: 1 }),
       }),
     )
   })
@@ -303,20 +302,60 @@ describe('S3Detail', () => {
     expect(screen.getByText('※参考情報')).toBeInTheDocument()
   })
 
-  it('media/carelog/diagnosisがcreatedAt昇順で混在表示される', async () => {
+  it('media/carelog/diagnosisが降順(最新が上)で混在表示される', async () => {
     mockGetMedia.mockResolvedValue(mediaFixture('b1'))         // Jan 15, Jun 10
     mockGetCareLogs.mockResolvedValue(careLogFixture('b1'))    // Mar 10
-    mockGetAdvices.mockResolvedValue(adviceFixture('b1'))      // Jun 20 (最後)
+    mockGetAdvices.mockResolvedValue(adviceFixture('b1'))      // Jun 20 (最新)
 
     renderS3Detail('b1')
     await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
 
-    // 全タイムラインカードを取得: mediaはbutton[name=/\d+年/]、carelogはbutton[name=水やり]、diagnosisはrole=button[name=AI診断を含む]
     const diagnosisCard = await screen.findByText('AI診断')
     const careLogLabel = screen.getByText('水やり')
 
-    // diagnosis(Jun 20)がcareLog(Mar 10)より後にある
-    expect(careLogLabel.compareDocumentPosition(diagnosisCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // 降順: diagnosis(Jun 20)がcareLog(Mar 10)より前にある
+    expect(diagnosisCard.compareDocumentPosition(careLogLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('各エントリに時刻(コロン区切り)が表示される', async () => {
+    mockGetMedia.mockResolvedValue(mediaFixture('b1'))
+    mockGetCareLogs.mockResolvedValue(careLogFixture('b1'))
+    mockGetAdvices.mockResolvedValue(adviceFixture('b1'))
+
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+
+    // 各カード種別のdate要素が ':' を含む (時:分 形式)
+    const datePills = document.querySelectorAll('.s3-date-pill')
+    datePills.forEach(el => expect(el.textContent).toMatch(/:/))
+
+    const carelogDates = document.querySelectorAll('.carelog-date')
+    carelogDates.forEach(el => expect(el.textContent).toMatch(/:/))
+
+    const diagnosisDates = document.querySelectorAll('.diagnosis-date')
+    diagnosisDates.forEach(el => expect(el.textContent).toMatch(/:/))
+  })
+
+  it('降順タイムラインで最新のcarelog(Jun 20)が最古のmedia(Jan 15)より前に表示される', async () => {
+    const newerCareLog = {
+      id: 'cl-new',
+      bonsaiId: 'b1',
+      type: 'PRUNING' as const,
+      date: '2026-06-20T00:00:00.000Z',
+      memo: '最新の世話',
+      createdAt: '2026-06-20T12:00:00.000Z',
+    }
+    mockGetMedia.mockResolvedValue([mediaFixture('b1')[0]])  // Jan 15 only
+    mockGetCareLogs.mockResolvedValue([newerCareLog])         // Jun 20 (newer)
+    mockGetAdvices.mockResolvedValue([])
+
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+
+    const careLogLabel = await screen.findByText('剪定')
+    const images = screen.getAllByRole('img')
+    // 降順: careLog(Jun 20)がmedia(Jan 15)より前 → careLogのラベルはimgの前にある
+    expect(careLogLabel.compareDocumentPosition(images[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('診断カードをクリックするとnavigateが呼ばれる', async () => {

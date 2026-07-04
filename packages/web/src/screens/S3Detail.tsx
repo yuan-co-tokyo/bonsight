@@ -82,6 +82,13 @@ function formatDate(isoDate: string): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+function formatDateTime(isoString: string): string {
+  const d = new Date(isoString)
+  const date = d.toLocaleDateString('ja-JP')
+  const time = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+  return `${date} ${time}`
+}
+
 function monthSpan(entries: MediaDtoEx[]): string {
   if (entries.length === 0) return '0'
   if (entries.length === 1) return '1'
@@ -125,6 +132,7 @@ function TimelineCard({
   onClick: () => void
 }) {
   const dateLabel = media.takenAt ? formatDate(media.takenAt) : formatDate(media.createdAt)
+  const displayDate = formatDateTime(media.createdAt ?? media.takenAt ?? '')
   return (
     <div
       role="button"
@@ -160,7 +168,7 @@ function TimelineCard({
             backdropFilter: 'blur(4px)',
           }}
         >
-          {dateLabel}
+          {displayDate}
         </span>
       </div>
       {media.caption && (
@@ -228,7 +236,7 @@ function CareLogCard({
           {CARE_TYPE_LABEL[careLog.type]}
         </span>
         <span className="carelog-date" style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>
-          {new Date(careLog.date).toLocaleDateString('ja-JP')}
+          {formatDateTime(careLog.createdAt)}
         </span>
       </div>
       {careLog.memo && (
@@ -299,7 +307,7 @@ function DiagnosisCard({
         <span className="diagnosis-icon" style={{ fontSize: 20 }}>🔍</span>
         <span className="diagnosis-label" style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>AI診断</span>
         <span className="diagnosis-date" style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>
-          {new Date(advice.createdAt).toLocaleDateString('ja-JP')}
+          {formatDateTime(advice.createdAt)}
         </span>
       </div>
       {advice.diagnosis.species && (
@@ -457,7 +465,7 @@ export default function S3Detail() {
       if (entry.kind === 'carelog') return entry.item.date
       return entry.item.createdAt
     }
-    return new Date(getDate(a)).getTime() - new Date(getDate(b)).getTime()
+    return new Date(getDate(b)).getTime() - new Date(getDate(a)).getTime()
   })
 
   const isEmpty = timeline.length === 0
