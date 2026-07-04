@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
 import Button from '../components/Button'
@@ -84,15 +84,17 @@ export default function S5AiResult() {
   const navigate = useNavigate()
   const { id: bonsaiId } = useParams<{ id: string }>()
   const location = useLocation()
-  const { mediaId, mediaUrl } = (location.state ?? {}) as {
+  const { mediaId, mediaUrl, advice: initialAdvice } = (location.state ?? {}) as {
     mediaId?: string
     mediaUrl?: string
+    advice?: AdviceResult
   }
 
   const [screenState, setScreenState] = useState<ScreenState>('loading')
   const [result, setResult] = useState<AdviceResult | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [retryKey, setRetryKey] = useState(0)
+  const firedKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!bonsaiId) {
@@ -100,6 +102,16 @@ export default function S5AiResult() {
       setScreenState('error')
       return
     }
+    if (initialAdvice) {
+      setResult(initialAdvice)
+      setScreenState('result')
+      return
+    }
+
+    const key = `${bonsaiId}:${mediaId ?? ''}:${retryKey}`
+    if (firedKeyRef.current === key) return
+    firedKeyRef.current = key
+
     setScreenState('loading')
     createAdvice(bonsaiId, mediaId)
       .then((data) => {
@@ -110,7 +122,7 @@ export default function S5AiResult() {
         setErrorMsg(err instanceof Error ? err.message : 'AI診断に失敗しました')
         setScreenState('error')
       })
-  }, [bonsaiId, mediaId, retryKey])
+  }, [bonsaiId, mediaId, retryKey, initialAdvice])
 
   return (
     <BonsightShell

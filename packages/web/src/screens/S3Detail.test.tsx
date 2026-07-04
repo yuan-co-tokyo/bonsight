@@ -3,7 +3,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S3Detail from './S3Detail'
 
-const { mockNavigate, mockGetBonsai, mockGetMedia, mockGetCareLogs, mockCreateCareLog, mockDeleteCareLog, mockUpdateCareLog } = vi.hoisted(() => ({
+const { mockNavigate, mockGetBonsai, mockGetMedia, mockGetCareLogs, mockCreateCareLog, mockDeleteCareLog, mockUpdateCareLog, mockGetAdvices } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockGetBonsai: vi.fn(),
   mockGetMedia: vi.fn(),
@@ -11,6 +11,7 @@ const { mockNavigate, mockGetBonsai, mockGetMedia, mockGetCareLogs, mockCreateCa
   mockCreateCareLog: vi.fn(),
   mockDeleteCareLog: vi.fn(),
   mockUpdateCareLog: vi.fn(),
+  mockGetAdvices: vi.fn(),
 }))
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -27,6 +28,9 @@ vi.mock('../api/careLogApi', () => ({
   createCareLogApi: mockCreateCareLog,
   updateCareLogApi: mockUpdateCareLog,
   deleteCareLogApi: mockDeleteCareLog,
+}))
+vi.mock('../api/adviceApi', () => ({
+  getAdvices: mockGetAdvices,
 }))
 
 function bonsaiFixture(id: string) {
@@ -83,6 +87,29 @@ function careLogFixture(bonsaiId: string) {
   ]
 }
 
+function adviceFixture(bonsaiId: string) {
+  return [
+    {
+      id: 'adv1',
+      bonsaiId,
+      mediaId: 'm1',
+      diagnosis: {
+        species: 'ゴヨウマツ',
+        health: [
+          { key: 'root_health', label: '根張り良好', level: 'good' as const },
+          { key: 'pest_risk', label: '害虫注意', level: 'warning' as const },
+        ],
+        styling: '模範的な根締木スタイル',
+        seasonal: '秋の管理を重視してください',
+        confidence: 0.85,
+        disclaimer: 'この診断は参考情報です',
+      },
+      confidence: 0.85,
+      createdAt: '2026-06-20T00:00:00.000Z',
+    },
+  ]
+}
+
 function renderS3Detail(id: string) {
   return render(
     <MemoryRouter initialEntries={[`/bonsai/${id}`]}>
@@ -102,9 +129,11 @@ describe('S3Detail', () => {
     mockCreateCareLog.mockReset()
     mockUpdateCareLog.mockReset()
     mockDeleteCareLog.mockReset()
+    mockGetAdvices.mockReset()
     mockGetBonsai.mockImplementation((id: string) => Promise.resolve(bonsaiFixture(id)))
     mockGetMedia.mockResolvedValue([])
     mockGetCareLogs.mockResolvedValue([])
+    mockGetAdvices.mockResolvedValue([])
   })
 
   it('bonsaiId b1 で名前「五葉松「翁」」が表示される', async () => {
@@ -133,19 +162,18 @@ describe('S3Detail', () => {
     expect(await screen.findByRole('heading', { name: '成長タイムライン', level: 2 })).toBeInTheDocument()
   })
 
-  it('getMediaが返すmediaが撮影日昇順でレンダリングされる', async () => {
+  it('タイムラインが降順(最新が上)でレンダリングされる', async () => {
     const media = mediaFixture('b1')
-    // 降順で返しても昇順に並ぶことを確認
-    mockGetMedia.mockResolvedValue([media[1], media[0]])
+    mockGetMedia.mockResolvedValue([media[0], media[1]])
 
     renderS3Detail('b1')
     await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
 
     const images = screen.getAllByRole('img')
-    // 最初の画像が takenAt 早い方 (m1: 2026-01)
-    expect(images[0]).toHaveAttribute('src', media[0].cloudfrontUrl)
-    // 2番目が m2 (2026-06)
-    expect(images[1]).toHaveAttribute('src', media[1].cloudfrontUrl)
+    // 最初の画像が takenAt 新しい方 (m2: 2026-06)
+    expect(images[0]).toHaveAttribute('src', media[1].cloudfrontUrl)
+    // 2番目が m1 (2026-01)
+    expect(images[1]).toHaveAttribute('src', media[0].cloudfrontUrl)
   })
 
   it('media・careLog 両方空の時、空状態が表示される', async () => {
@@ -209,14 +237,14 @@ describe('S3Detail', () => {
     renderS3Detail('b1')
     await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
 
-    // 最初のタイムラインカード（clickableなrole=button）をクリック
+    // 降順タイムラインで最初に表示されるカードは最新 (m2: 2026-06)
     const cards = screen.getAllByRole('button', { name: /\d+年/ })
     fireEvent.click(cards[0])
 
     expect(mockNavigate).toHaveBeenCalledWith(
-      `/s7/${media[0].id}`,
+      `/s7/${media[1].id}`,
       expect.objectContaining({
-        state: expect.objectContaining({ mediaList: media, initialIndex: 0 }),
+        state: expect.objectContaining({ mediaList: media, initialIndex: 1 }),
       }),
     )
   })
@@ -263,5 +291,84 @@ describe('S3Detail', () => {
     expect(await screen.findByRole('button', { name: 'キャンセル' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
     await waitFor(() => expect(screen.queryByRole('button', { name: '保存' })).toBeNull())
+  })
+
+  // AI診断タイムライン統合テスト
+
+  it('adviceListに1件あるとき「AI診断」カードが表示される', async () => {
+    mockGetAdvices.mockResolvedValue(adviceFixture('b1'))
+    renderS3Detail('b1')
+    expect(await screen.findByText('AI診断')).toBeInTheDocument()
+    expect(screen.getByText('※参考情報')).toBeInTheDocument()
+  })
+
+  it('media/carelog/diagnosisが降順(最新が上)で混在表示される', async () => {
+    mockGetMedia.mockResolvedValue(mediaFixture('b1'))         // Jan 15, Jun 10
+    mockGetCareLogs.mockResolvedValue(careLogFixture('b1'))    // Mar 10
+    mockGetAdvices.mockResolvedValue(adviceFixture('b1'))      // Jun 20 (最新)
+
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+
+    const diagnosisCard = await screen.findByText('AI診断')
+    const careLogLabel = screen.getByText('水やり')
+
+    // 降順: diagnosis(Jun 20)がcareLog(Mar 10)より前にある
+    expect(diagnosisCard.compareDocumentPosition(careLogLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('各エントリに時刻(コロン区切り)が表示される', async () => {
+    mockGetMedia.mockResolvedValue(mediaFixture('b1'))
+    mockGetCareLogs.mockResolvedValue(careLogFixture('b1'))
+    mockGetAdvices.mockResolvedValue(adviceFixture('b1'))
+
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+
+    // 各カード種別のdate要素が ':' を含む (時:分 形式)
+    const datePills = document.querySelectorAll('.s3-date-pill')
+    datePills.forEach(el => expect(el.textContent).toMatch(/:/))
+
+    const carelogDates = document.querySelectorAll('.carelog-date')
+    carelogDates.forEach(el => expect(el.textContent).toMatch(/:/))
+
+    const diagnosisDates = document.querySelectorAll('.diagnosis-date')
+    diagnosisDates.forEach(el => expect(el.textContent).toMatch(/:/))
+  })
+
+  it('降順タイムラインで最新のcarelog(Jun 20)が最古のmedia(Jan 15)より前に表示される', async () => {
+    const newerCareLog = {
+      id: 'cl-new',
+      bonsaiId: 'b1',
+      type: 'PRUNING' as const,
+      date: '2026-06-20T00:00:00.000Z',
+      memo: '最新の世話',
+      createdAt: '2026-06-20T12:00:00.000Z',
+    }
+    mockGetMedia.mockResolvedValue([mediaFixture('b1')[0]])  // Jan 15 only
+    mockGetCareLogs.mockResolvedValue([newerCareLog])         // Jun 20 (newer)
+    mockGetAdvices.mockResolvedValue([])
+
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+
+    const careLogLabel = await screen.findByText('剪定')
+    const images = screen.getAllByRole('img')
+    // 降順: careLog(Jun 20)がmedia(Jan 15)より前 → careLogのラベルはimgの前にある
+    expect(careLogLabel.compareDocumentPosition(images[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('診断カードをクリックするとnavigateが呼ばれる', async () => {
+    const advices = adviceFixture('b1')
+    mockGetAdvices.mockResolvedValue(advices)
+    renderS3Detail('b1')
+
+    const diagnosisCard = await screen.findByRole('button', { name: /AI診断/ })
+    fireEvent.click(diagnosisCard)
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/bonsai/b1/ai',
+      expect.objectContaining({ state: expect.objectContaining({ advice: advices[0] }) }),
+    )
   })
 })

@@ -4,6 +4,7 @@ import type { BonsaiDto, CareLogDto, CareType } from 'shared'
 import { getBonsai } from '../api/bonsaiApi'
 import { getMedia, type MediaDtoEx } from '../api/mediaApi'
 import { getCareLogsApi, createCareLogApi, updateCareLogApi, deleteCareLogApi } from '../api/careLogApi'
+import { getAdvices, type AdviceResult } from '../api/adviceApi'
 import BonsightShell from '../components/BonsightShell'
 import Button from '../components/Button'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
@@ -81,6 +82,13 @@ function formatDate(isoDate: string): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+function formatDateTime(isoString: string): string {
+  const d = new Date(isoString)
+  const date = d.toLocaleDateString('ja-JP')
+  const time = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+  return `${date} ${time}`
+}
+
 function monthSpan(entries: MediaDtoEx[]): string {
   if (entries.length === 0) return '0'
   if (entries.length === 1) return '1'
@@ -124,6 +132,7 @@ function TimelineCard({
   onClick: () => void
 }) {
   const dateLabel = media.takenAt ? formatDate(media.takenAt) : formatDate(media.createdAt)
+  const displayDate = formatDateTime(media.createdAt ?? media.takenAt ?? '')
   return (
     <div
       role="button"
@@ -159,7 +168,7 @@ function TimelineCard({
             backdropFilter: 'blur(4px)',
           }}
         >
-          {dateLabel}
+          {displayDate}
         </span>
       </div>
       {media.caption && (
@@ -227,7 +236,7 @@ function CareLogCard({
           {CARE_TYPE_LABEL[careLog.type]}
         </span>
         <span className="carelog-date" style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>
-          {new Date(careLog.date).toLocaleDateString('ja-JP')}
+          {formatDateTime(careLog.createdAt)}
         </span>
       </div>
       {careLog.memo && (
@@ -268,9 +277,65 @@ function EmptyTimeline({ onAdd }: { onAdd: () => void }) {
   )
 }
 
+function DiagnosisCard({
+  advice,
+  onClick,
+}: {
+  advice: AdviceResult
+  onClick: () => void
+}) {
+  return (
+    <div
+      className="timeline-diagnosis-card"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 14,
+        marginBottom: 16,
+        padding: '12px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="diagnosis-icon" style={{ fontSize: 20 }}>🔍</span>
+        <span className="diagnosis-label" style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-ink)' }}>AI診断</span>
+        <span className="diagnosis-date" style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>
+          {formatDateTime(advice.createdAt)}
+        </span>
+      </div>
+      {advice.diagnosis.species && (
+        <span className="diagnosis-species" style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+          {advice.diagnosis.species}
+        </span>
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {advice.diagnosis.health.slice(0, 2).map((flag) => (
+          <span key={flag.key} className="diagnosis-flag" style={{ fontSize: 11, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 999, padding: '2px 8px' }}>
+            {flag.label}
+          </span>
+        ))}
+      </div>
+      {advice.diagnosis.confidence !== undefined && (
+        <span className="diagnosis-confidence" style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+          信頼度: {Math.round(advice.diagnosis.confidence * 100)}%
+        </span>
+      )}
+      <p className="diagnosis-note" style={{ fontSize: 11, color: 'var(--color-text-secondary)', margin: 0 }}>※参考情報</p>
+    </div>
+  )
+}
+
 type TimelineItem =
   | { kind: 'media'; item: MediaDtoEx }
   | { kind: 'carelog'; item: CareLogDto }
+  | { kind: 'diagnosis'; item: AdviceResult }
 
 export default function S3Detail() {
   const navigate = useNavigate()
@@ -278,6 +343,7 @@ export default function S3Detail() {
   const [bonsai, setBonsai] = useState<BonsaiDto | null>(null)
   const [mediaList, setMediaList] = useState<MediaDtoEx[]>([])
   const [careLogList, setCareLogList] = useState<CareLogDto[]>([])
+  const [adviceList, setAdviceList] = useState<AdviceResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
@@ -302,10 +368,11 @@ export default function S3Detail() {
       setLoading(true)
       setError(false)
       try {
-        const [data, media, careLogs] = await Promise.all([
+        const [data, media, careLogs, advices] = await Promise.all([
           getBonsai(bonsaiId),
           getMedia(bonsaiId),
           getCareLogsApi(bonsaiId),
+          getAdvices(bonsaiId),
         ])
         if (!ignore) {
           setBonsai(data)
@@ -316,6 +383,7 @@ export default function S3Detail() {
           })
           setMediaList(sorted)
           setCareLogList(careLogs)
+          setAdviceList(advices)
         }
       } catch {
         if (!ignore) setError(true)
@@ -381,19 +449,23 @@ export default function S3Detail() {
     })
   }
 
+  function handleOpenDiagnosis(advice: AdviceResult) {
+    navigate(`/bonsai/${id}/ai`, { state: { advice } })
+  }
+
   const hasPhoto = mediaList.length > 0 || !!bonsai.coverImageUrl
 
   const timeline: TimelineItem[] = [
     ...mediaList.map((item) => ({ kind: 'media' as const, item })),
     ...careLogList.map((item) => ({ kind: 'carelog' as const, item })),
+    ...adviceList.map((item) => ({ kind: 'diagnosis' as const, item })),
   ].sort((a, b) => {
-    const dateA = a.kind === 'media'
-      ? (a.item.takenAt ?? a.item.createdAt)
-      : a.item.date
-    const dateB = b.kind === 'media'
-      ? (b.item.takenAt ?? b.item.createdAt)
-      : b.item.date
-    return new Date(dateA).getTime() - new Date(dateB).getTime()
+    const getDate = (entry: TimelineItem): string => {
+      if (entry.kind === 'media') return entry.item.takenAt ?? entry.item.createdAt
+      if (entry.kind === 'carelog') return entry.item.date
+      return entry.item.createdAt
+    }
+    return new Date(getDate(b)).getTime() - new Date(getDate(a)).getTime()
   })
 
   const isEmpty = timeline.length === 0
@@ -543,12 +615,18 @@ export default function S3Detail() {
                   media={entry.item}
                   onClick={() => handleThumbnailClick(mediaList.indexOf(entry.item))}
                 />
-              ) : (
+              ) : entry.kind === 'carelog' ? (
                 <CareLogCard
                   key={entry.item.id}
                   careLog={entry.item}
                   onEdit={handleEditCareLog}
                   onDelete={(logId) => void handleDeleteCareLog(logId)}
+                />
+              ) : (
+                <DiagnosisCard
+                  key={entry.item.id}
+                  advice={entry.item}
+                  onClick={() => handleOpenDiagnosis(entry.item)}
                 />
               )
             )
