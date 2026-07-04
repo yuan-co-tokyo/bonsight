@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PresignRequestDto } from './dto/presign-request.dto';
 import { CreateMediaDto } from './dto/create-media.dto';
@@ -69,5 +69,31 @@ export class MediaService {
       ...m,
       cloudfrontUrl: `${this.cloudfrontDomain}/${m.s3Key}`,
     }));
+  }
+
+  async deleteMedia(bonsaiId: string, id: string, sub: string) {
+    await this.verifyBonsaiOwner(bonsaiId, sub);
+
+    const media = await this.prisma.media.findUnique({ where: { id } });
+    if (!media) throw new NotFoundException(`Media ${id} not found`);
+    if (media.bonsaiId !== bonsaiId) throw new ForbiddenException('Media does not belong to this bonsai');
+
+    await this.prisma.media.delete({ where: { id } });
+
+    if (this.bucket) {
+      try {
+        await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: media.s3Key }));
+      } catch {
+        // best-effort: S3 failure does not affect DB result
+      }
+    }
+
+    try {
+      await this.prisma.aIAdvice.updateMany({ where: { mediaId: id }, data: { mediaId: null } });
+    } catch {
+      // best-effort: FK absent, failure is non-fatal
+    }
+
+    return { id };
   }
 }

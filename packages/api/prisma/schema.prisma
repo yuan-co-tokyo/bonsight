@@ -69,7 +69,7 @@ model Bonsai {
 model Media {
   id        String    @id @default(cuid())
   bonsaiId  String
-  bonsai    Bonsai    @relation(fields: [bonsaiId], references: [id])
+  bonsai    Bonsai    @relation(fields: [bonsaiId], references: [id], onDelete: Cascade)
   type      MediaType @default(PHOTO)
   s3Key     String // TODO: S3未結線
   caption   String?
@@ -80,7 +80,7 @@ model Media {
 model AIAdvice {
   id         String   @id @default(cuid())
   bonsaiId   String
-  bonsai     Bonsai   @relation(fields: [bonsaiId], references: [id])
+  bonsai     Bonsai   @relation(fields: [bonsaiId], references: [id], onDelete: Cascade)
   mediaId    String?
   diagnosis  Json // TODO: Bedrock未結線(cmd_019以降)
   confidence Float?
