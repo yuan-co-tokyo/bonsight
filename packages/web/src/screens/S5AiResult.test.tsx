@@ -122,14 +122,23 @@ describe('S5AiResult', () => {
     })
   })
 
-  it('「カルテに保存」ボタン押下で navigate(-1) が呼ばれる', async () => {
+  it('「カルテに保存」ボタン押下で navigate がS3(/bonsai/b1)に呼ばれる', async () => {
     mockCreateAdvice.mockResolvedValue(mockResult)
     renderS5()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'この診断をカルテに保存' })).toBeInTheDocument()
     })
     fireEvent.click(screen.getByRole('button', { name: 'この診断をカルテに保存' }))
-    expect(mockNavigate).toHaveBeenCalledWith(-1)
+    expect(mockNavigate).toHaveBeenCalledWith('/bonsai/b1')
+    expect(mockNavigate).not.toHaveBeenCalledWith(-1)
+  })
+
+  it('onBack(戻るボタン)押下で navigate がS3(/bonsai/b1)に呼ばれる', async () => {
+    mockCreateAdvice.mockResolvedValue(mockResult)
+    renderS5()
+    fireEvent.click(screen.getByRole('button', { name: '戻る' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/bonsai/b1')
+    expect(mockNavigate).not.toHaveBeenCalledWith(-1)
   })
 
   it('low_confidence: confidence < 0.5 のとき低信頼度注記が表示される', async () => {
