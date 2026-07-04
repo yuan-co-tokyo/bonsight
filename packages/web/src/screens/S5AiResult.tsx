@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
 import Button from '../components/Button'
@@ -94,6 +94,7 @@ export default function S5AiResult() {
   const [result, setResult] = useState<AdviceResult | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [retryKey, setRetryKey] = useState(0)
+  const firedKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!bonsaiId) {
@@ -106,6 +107,11 @@ export default function S5AiResult() {
       setScreenState('result')
       return
     }
+
+    const key = `${bonsaiId}:${mediaId ?? ''}:${retryKey}`
+    if (firedKeyRef.current === key) return
+    firedKeyRef.current = key
+
     setScreenState('loading')
     createAdvice(bonsaiId, mediaId)
       .then((data) => {

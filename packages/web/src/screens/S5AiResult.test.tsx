@@ -1,3 +1,4 @@
+import { StrictMode } from 'react'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -44,6 +45,18 @@ function renderS5(state?: object) {
         <Route path="/bonsai/:id/ai" element={<S5AiResult />} />
       </Routes>
     </MemoryRouter>
+  )
+}
+
+function renderS5Strict(state?: object) {
+  return render(
+    <StrictMode>
+      <MemoryRouter initialEntries={[{ pathname: '/bonsai/b1/ai', state: state ?? {} }]}>
+        <Routes>
+          <Route path="/bonsai/:id/ai" element={<S5AiResult />} />
+        </Routes>
+      </MemoryRouter>
+    </StrictMode>
   )
 }
 
@@ -130,5 +143,44 @@ describe('S5AiResult', () => {
     await waitFor(() => {
       expect(screen.getByTestId('low-confidence-note')).toBeInTheDocument()
     })
+  })
+})
+
+describe('idempotencyガード (useRef)', () => {
+  beforeEach(() => {
+    mockCreateAdvice.mockReset()
+    mockNavigate.mockReset()
+  })
+
+  it('StrictMode二重mountでも createAdvice は1回のみ呼ばれる', async () => {
+    mockCreateAdvice.mockResolvedValue(mockResult)
+    renderS5Strict({ mediaId: 'm1' })
+    await waitFor(() => {
+      expect(screen.getByText('この盆栽はゴヨウマツですね。')).toBeInTheDocument()
+    })
+    expect(mockCreateAdvice).toHaveBeenCalledTimes(1)
+  })
+
+  it('retryKey更新で createAdvice が再び1回のみ呼ばれる', async () => {
+    mockCreateAdvice.mockRejectedValueOnce(new Error('一時エラー'))
+    mockCreateAdvice.mockResolvedValue(mockResult)
+    renderS5Strict({ mediaId: 'm1' })
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+    expect(mockCreateAdvice).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: '再試行' }))
+    await waitFor(() => {
+      expect(screen.getByText('この盆栽はゴヨウマツですね。')).toBeInTheDocument()
+    })
+    expect(mockCreateAdvice).toHaveBeenCalledTimes(2)
+  })
+
+  it('initialAdvice がある場合は createAdvice が呼ばれない', async () => {
+    renderS5Strict({ advice: mockResult, mediaId: 'm1' })
+    await waitFor(() => {
+      expect(screen.getByText('この盆栽はゴヨウマツですね。')).toBeInTheDocument()
+    })
+    expect(mockCreateAdvice).not.toHaveBeenCalled()
   })
 })
