@@ -129,6 +129,36 @@ describe('S4Upload', () => {
     })
   })
 
+  it('autoDiagnose ONのとき navigate に replace:true が含まれる', async () => {
+    global.URL.createObjectURL = vi.fn(() => 'mock-url')
+    global.fetch = vi.fn().mockResolvedValue({ ok: true } as Response)
+    mockGetPresignUrl.mockResolvedValue({
+      presignedUrl: 'https://s3.example.com/presigned',
+      s3Key: 'users/sub/bonsai/b1/ts-photo.jpg',
+    })
+    mockCreateMedia.mockResolvedValue({
+      id: 'media-1',
+      bonsaiId: 'b1',
+      type: 'PHOTO',
+      s3Key: 'users/sub/bonsai/b1/ts-photo.jpg',
+      cloudfrontUrl: 'https://cdn.example.com/photo.jpg',
+      createdAt: '2026-06-27T00:00:00.000Z',
+    })
+
+    renderS4Upload('b1')
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(fileInput, { target: { files: [new File(['img'], 'photo.jpg', { type: 'image/jpeg' })] } })
+    fireEvent.click(screen.getByRole('button', { name: 'アップロード' }))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        '/bonsai/b1/ai',
+        expect.objectContaining({ replace: true }),
+      )
+    })
+  })
+
   it('S3 PUTが失敗するとエラーメッセージが表示される', async () => {
     global.URL.createObjectURL = vi.fn(() => 'mock-url')
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 } as Response)

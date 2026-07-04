@@ -129,7 +129,7 @@ export default function S5AiResult() {
       screen="S5"
       showTabBar={false}
       title="AI診断"
-      onBack={() => navigate(-1)}
+      onBack={() => navigate(`/bonsai/${bonsaiId}`)}
       contextAction={{ label: '✦', onClick: () => {} }}
     >
       {screenState === 'loading' && (
@@ -303,7 +303,7 @@ export default function S5AiResult() {
           {/* 保存ボタン */}
           <Button
             variant="primary"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(`/bonsai/${bonsaiId}`)}
             style={{ width: 'calc(100% - 32px)', margin: '8px 16px 24px' }}
           >
             この診断をカルテに保存
