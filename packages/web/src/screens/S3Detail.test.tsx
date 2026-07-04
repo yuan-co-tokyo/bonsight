@@ -391,6 +391,41 @@ describe('S3Detail', () => {
     expect(images[0].compareDocumentPosition(careLogLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
+  it('careLogは実施日(date)ではなく登録日(createdAt)でソートされる', async () => {
+    // careLog: 実施日(date)=Jun01(古い), 登録日(createdAt)=Jul02(最新)
+    // advice:  createdAt=Jul01
+    // media:   createdAt=Jun10
+    // createdAt降順なら careLog→advice→media の順になるはず
+    // date基準なら media→careLog→advice になってしまう (バグ)
+    const careLogOldDateNewCreated = {
+      id: 'cl-date-mismatch',
+      bonsaiId: 'b1',
+      type: 'PRUNING' as const,
+      date: '2026-06-01T00:00:00.000Z',   // 実施日は古い
+      memo: '実施日が古い剪定',
+      createdAt: '2026-07-02T00:00:00.000Z', // 登録日は最新
+    }
+    const adviceMid = {
+      ...adviceFixture('b1')[0],
+      createdAt: '2026-07-01T00:00:00.000Z', // Jul01
+    }
+    mockGetMedia.mockResolvedValue([mediaFixture('b1')[1]]) // Jun10
+    mockGetCareLogs.mockResolvedValue([careLogOldDateNewCreated])
+    mockGetAdvices.mockResolvedValue([adviceMid])
+
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+
+    const careLogLabel = await screen.findByText('剪定')
+    const diagnosisLabel = screen.getByText('AI診断')
+    const images = screen.getAllByRole('img')
+
+    // careLog(createdAt Jul02) > advice(Jul01) > media(Jun10)
+    // careLogが最初に来ること
+    expect(careLogLabel.compareDocumentPosition(diagnosisLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(diagnosisLabel.compareDocumentPosition(images[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('診断カードをクリックするとnavigateが呼ばれる', async () => {
     const advices = adviceFixture('b1')
     mockGetAdvices.mockResolvedValue(advices)
