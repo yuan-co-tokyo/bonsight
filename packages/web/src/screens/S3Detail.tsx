@@ -432,7 +432,7 @@ export default function S3Detail() {
     if (!id) return
     setShowDeleteBonsaiDialog(false)
     await deleteBonsai(id)
-    navigate('/')
+    navigate('/', { replace: true })
   }
 
   if (loading) {
@@ -493,7 +493,7 @@ export default function S3Detail() {
             className="s3-hero"
             src={bonsai.coverImageUrl}
             alt={displayName(bonsai)}
-            style={{ width: '100%', aspectRatio: '5/4', objectFit: 'cover', display: 'block' }}
+            style={{ width: '100%', aspectRatio: '5/4', objectFit: 'contain', display: 'block', background: 'var(--color-bg)' }}
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         ) : (
