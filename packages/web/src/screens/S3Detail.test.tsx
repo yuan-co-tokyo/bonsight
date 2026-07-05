@@ -472,6 +472,6 @@ describe('S3Detail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '削除する' }))
     await waitFor(() => expect(mockDeleteBonsai).toHaveBeenCalledWith('b1'))
-    expect(mockNavigate).toHaveBeenCalledWith('/')
+    expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
   })
 })
