@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { BonsaiDto, CareLogDto, CareType } from 'shared'
-import { getBonsai } from '../api/bonsaiApi'
+import { getBonsai, deleteBonsai } from '../api/bonsaiApi'
 import { getMedia, type MediaDtoEx } from '../api/mediaApi'
 import { getCareLogsApi, createCareLogApi, updateCareLogApi, deleteCareLogApi } from '../api/careLogApi'
 import { getAdvices, type AdviceResult } from '../api/adviceApi'
@@ -347,6 +347,7 @@ export default function S3Detail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
+  const [showDeleteBonsaiDialog, setShowDeleteBonsaiDialog] = useState(false)
   const [showCareForm, setShowCareForm] = useState(false)
   const [careFormData, setCareFormData] = useState<{ type: CareType; date: string; memo: string }>({
     type: 'WATERING',
@@ -427,6 +428,13 @@ export default function S3Detail() {
     await fetchCareLogs(id)
   }
 
+  const handleDeleteBonsai = async () => {
+    if (!id) return
+    setShowDeleteBonsaiDialog(false)
+    await deleteBonsai(id)
+    navigate('/', { replace: true })
+  }
+
   if (loading) {
     return (
       <BonsightShell screen="S3" showTabBar={false} title="読み込み中" onBack={() => navigate(-1)}>
@@ -485,7 +493,7 @@ export default function S3Detail() {
             className="s3-hero"
             src={bonsai.coverImageUrl}
             alt={displayName(bonsai)}
-            style={{ width: '100%', aspectRatio: '5/4', objectFit: 'cover', display: 'block' }}
+            style={{ width: '100%', aspectRatio: '5/4', objectFit: 'contain', display: 'block', background: 'var(--color-bg)' }}
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         ) : (
@@ -531,6 +539,99 @@ export default function S3Detail() {
             <SparkleIcon /> AIに診てもらう
           </Button>
         </div>
+
+        {/* 盆栽削除ボタン */}
+        <div style={{ padding: '0 16px 8px' }}>
+          <button
+            className="s3-delete-bonsai-btn"
+            onClick={() => setShowDeleteBonsaiDialog(true)}
+            style={{
+              width: '100%',
+              padding: '10px 0',
+              background: 'none',
+              border: '1px solid var(--status-danger-text)',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              color: 'var(--status-danger-text)',
+              cursor: 'pointer',
+            }}
+          >
+            盆栽を削除
+          </button>
+        </div>
+
+        {/* 盆栽削除確認ダイアログ */}
+        {showDeleteBonsaiDialog && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-bonsai-title"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1000,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+            }}
+          >
+            <div
+              style={{
+                background: 'var(--color-bg)',
+                borderRadius: 16,
+                padding: 24,
+                width: '100%',
+                maxWidth: 320,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+              }}
+            >
+              <h3 id="delete-bonsai-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--color-ink)' }}>
+                盆栽を削除しますか？
+              </h3>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                本当に削除しますか？この操作は取り消せません。写真・世話記録・診断も全て削除されます。
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setShowDeleteBonsaiDialog(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    background: 'none',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={() => void handleDeleteBonsai()}
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    background: 'var(--status-danger-text)',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: '#fff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  削除する
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 世話を記録フォーム */}
         {showCareForm && (

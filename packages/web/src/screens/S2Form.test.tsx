@@ -68,7 +68,7 @@ describe('S2Form', () => {
     await user.type(screen.getByLabelText('名前・愛称'), '五葉松「翁」')
     await user.click(screen.getByRole('button', { name: '保存' }))
     expect(mockCreateBonsai).toHaveBeenCalledWith(expect.objectContaining({ name: '五葉松「翁」' }))
-    expect(mockNavigate).toHaveBeenCalledWith('/bonsai/created-1')
+    expect(mockNavigate).toHaveBeenCalledWith('/bonsai/created-1', { replace: true })
   })
 
   it('編集モードでgetBonsaiの値を初期表示しupdateBonsaiで保存する', async () => {
@@ -93,7 +93,7 @@ describe('S2Form', () => {
     await user.click(screen.getByRole('button', { name: '保存' }))
 
     expect(mockUpdateBonsai).toHaveBeenCalledWith('b10', expect.objectContaining({ name: '黒松' }))
-    expect(mockNavigate).toHaveBeenCalledWith('/bonsai/b10')
+    expect(mockNavigate).toHaveBeenCalledWith('/bonsai/b10', { replace: true })
   })
 
   it('「表紙写真を追加」タイルが存在する(S2-H1)', () => {

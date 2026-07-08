@@ -92,7 +92,7 @@ export default function S4Upload() {
       if (autoDiagnose) {
         navigate(`/bonsai/${bonsaiId}/ai`, { state: { mediaId: media.id, mediaUrl: media.cloudfrontUrl }, replace: true })
       } else {
-        navigate(`/bonsai/${bonsaiId}`)
+        navigate(`/bonsai/${bonsaiId}`, { replace: true })
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'アップロードに失敗しました')

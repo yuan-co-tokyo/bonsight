@@ -3,7 +3,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S3Detail from './S3Detail'
 
-const { mockNavigate, mockGetBonsai, mockGetMedia, mockGetCareLogs, mockCreateCareLog, mockDeleteCareLog, mockUpdateCareLog, mockGetAdvices } = vi.hoisted(() => ({
+const { mockNavigate, mockGetBonsai, mockGetMedia, mockGetCareLogs, mockCreateCareLog, mockDeleteCareLog, mockUpdateCareLog, mockGetAdvices, mockDeleteBonsai } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockGetBonsai: vi.fn(),
   mockGetMedia: vi.fn(),
@@ -12,6 +12,7 @@ const { mockNavigate, mockGetBonsai, mockGetMedia, mockGetCareLogs, mockCreateCa
   mockDeleteCareLog: vi.fn(),
   mockUpdateCareLog: vi.fn(),
   mockGetAdvices: vi.fn(),
+  mockDeleteBonsai: vi.fn(),
 }))
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -19,6 +20,7 @@ vi.mock('react-router-dom', async () => {
 })
 vi.mock('../api/bonsaiApi', () => ({
   getBonsai: mockGetBonsai,
+  deleteBonsai: mockDeleteBonsai,
 }))
 vi.mock('../api/mediaApi', () => ({
   getMedia: mockGetMedia,
@@ -134,6 +136,7 @@ describe('S3Detail', () => {
     mockGetMedia.mockResolvedValue([])
     mockGetCareLogs.mockResolvedValue([])
     mockGetAdvices.mockResolvedValue([])
+    mockDeleteBonsai.mockResolvedValue(undefined)
   })
 
   it('bonsaiId b1 で名前「五葉松「翁」」が表示される', async () => {
@@ -438,5 +441,37 @@ describe('S3Detail', () => {
       '/bonsai/b1/ai',
       expect.objectContaining({ state: expect.objectContaining({ advice: advices[0] }) }),
     )
+  })
+
+  // 盆栽削除テスト
+
+  it('「盆栽を削除」ボタンが表示される', async () => {
+    renderS3Detail('b1')
+    expect(await screen.findByRole('button', { name: '盆栽を削除' })).toBeInTheDocument()
+  })
+
+  it('削除ボタンクリックで確認ダイアログが表示され、キャンセルで閉じる', async () => {
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+
+    fireEvent.click(screen.getByRole('button', { name: '盆栽を削除' }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText(/この操作は取り消せません/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(mockDeleteBonsai).not.toHaveBeenCalled()
+  })
+
+  it('確認ダイアログで「削除する」クリック → deleteBonsaiが呼ばれS1(/)へ遷移する', async () => {
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」', level: 1 })
+
+    fireEvent.click(screen.getByRole('button', { name: '盆栽を削除' }))
+    await screen.findByRole('dialog')
+
+    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+    await waitFor(() => expect(mockDeleteBonsai).toHaveBeenCalledWith('b1'))
+    expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
   })
 })

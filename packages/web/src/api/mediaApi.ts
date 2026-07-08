@@ -34,3 +34,7 @@ export async function createMedia(
     body: JSON.stringify(dto),
   })
 }
+
+export async function deleteMedia(bonsaiId: string, mediaId: string): Promise<void> {
+  await apiFetch<unknown>(`/bonsai/${bonsaiId}/media/${mediaId}`, { method: 'DELETE' })
+}

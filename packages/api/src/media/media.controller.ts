@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { CognitoAuthGuard } from '../auth/cognito-auth.guard';
 import { MediaService } from './media.service';
 import { CreateMediaDto } from './dto/create-media.dto';
@@ -26,5 +26,14 @@ export class MediaController {
     @Req() req: any,
   ) {
     return this.mediaService.createMedia(bonsaiId, createMediaDto, req.user.sub);
+  }
+
+  @Delete('bonsai/:bonsaiId/media/:id')
+  deleteMedia(
+    @Param('bonsaiId') bonsaiId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    return this.mediaService.deleteMedia(bonsaiId, id, req.user.sub);
   }
 }

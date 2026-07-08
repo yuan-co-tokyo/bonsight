@@ -134,7 +134,7 @@ export default function S2Form() {
       const saved = id
         ? await updateBonsai(id, dto)
         : await createBonsai(dto)
-      navigate(id ? `/bonsai/${id}` : `/bonsai/${saved.id}`)
+      navigate(id ? `/bonsai/${id}` : `/bonsai/${saved.id}`, { replace: true })
     } catch (e) {
       setApiError(e instanceof Error ? e.message : '保存に失敗しました')
       setUploading(false)
