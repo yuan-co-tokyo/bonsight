@@ -24,6 +24,19 @@
 - SSM パラメータ手動投入 (`/bonsight/prod/DB_PASSWORD` 等)
 - GitHub Secrets 登録 (`AWS_OIDC_ROLE_ARN` 等)
 
+App Runner が参照するSSMパラメータは以下を登録する。実値はAWS上だけに置き、リポジトリへ書かない。
+
+| SSM Parameter | Type | 用途 |
+|---------------|------|------|
+| `/bonsight/prod/DATABASE_URL` | SecureString | Prismaの本番DB接続文字列 |
+| `/bonsight/prod/COGNITO_USER_POOL_ID` | SecureString | APIのJWT検証用CognitoユーザープールID |
+| `/bonsight/prod/COGNITO_CLIENT_ID` | SecureString | APIのJWT検証用CognitoアプリクライアントID |
+| `/bonsight/prod/S3_BUCKET_NAME` | SecureString or String | メディア保存用S3バケット名 |
+
+`BEDROCK_DIAGNOSIS_MODEL_ID` と `BEDROCK_CHAT_MODEL_ID` は非機密のモデルIDだが、CDKでは deploy 前更新用プレースホルダーにしている。`cdk deploy BonsightApiStack-prod -c env=prod` の前に、App Runnerサービス環境変数またはCDKコードを実モデルIDへ更新する。例: ap-northeast-1 で利用可能な Anthropic Claude 系モデルID。
+
+MediaStack deploy 後に `CloudFrontDomain` output として `https://<xxx>.cloudfront.net` が判明する。ApiStack は MediaStack のCloudFront URLをCDKクロススタック参照で `CLOUDFRONT_DOMAIN` へ渡すため、MediaStack後にApiStackをdeployする。既存App Runnerサービスへ後から反映する場合は、App Runnerコンソールで `CLOUDFRONT_DOMAIN` を設定するか、`cdk deploy BonsightApiStack-prod -c env=prod` を再実行する。
+
 GitHub Actions で参照するSecretsは以下。実値や長期アクセスキーはリポジトリへ書かない。
 
 | Secret | 用途 |

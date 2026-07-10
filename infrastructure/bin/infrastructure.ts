@@ -17,7 +17,7 @@ const dbStack = new BonsightDbStack(app, `BonsightDbStack-${appEnv}`, {
   env: stackEnv,
 });
 
-new BonsightMediaStack(app, `BonsightMediaStack-${appEnv}`, {
+const mediaStack = new BonsightMediaStack(app, `BonsightMediaStack-${appEnv}`, {
   env: stackEnv,
 });
 
@@ -31,10 +31,9 @@ const apiStack = new BonsightApiStack(app, `BonsightApiStack-${appEnv}`, {
   vpc: dbStack.vpc,
   apiSecurityGroup: dbStack.apiSecurityGroup,
   dbSecurityGroup: dbStack.dbSecurityGroup,
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION ?? 'ap-northeast-1',
-  },
+  mediaCloudfrontDomain: `https://${mediaStack.distribution.distributionDomainName}`,
+  env: stackEnv,
 });
 
 apiStack.addDependency(dbStack);
+apiStack.addDependency(mediaStack);

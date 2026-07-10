@@ -10,6 +10,7 @@ export interface BonsightApiStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
   readonly apiSecurityGroup: ec2.ISecurityGroup;
   readonly dbSecurityGroup: ec2.ISecurityGroup;
+  readonly mediaCloudfrontDomain: string;
 }
 
 export class BonsightApiStack extends cdk.Stack {
@@ -25,6 +26,9 @@ export class BonsightApiStack extends cdk.Stack {
       account: '',
       resource: `bonsight-media-${props.appEnv}-${cdk.Stack.of(this).account}`,
     });
+    const stack = cdk.Stack.of(this);
+    const ssmParameterArn = (name: string) =>
+      `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/bonsight/${props.appEnv}/${name}`;
 
     this.repository = new ecr.Repository(this, 'BonsightApiRepository', {
       repositoryName: 'bonsight-api',
@@ -113,24 +117,42 @@ export class BonsightApiStack extends cdk.Stack {
                 value: 'production',
               },
               {
+                name: 'BEDROCK_REGION',
+                value: stack.region,
+              },
+              {
+                name: 'AWS_REGION',
+                value: stack.region,
+              },
+              {
+                name: 'BEDROCK_DIAGNOSIS_MODEL_ID',
+                value: 'PLACEHOLDER_SET_BEFORE_DEPLOY',
+              },
+              {
+                name: 'BEDROCK_CHAT_MODEL_ID',
+                value: 'PLACEHOLDER_SET_BEFORE_DEPLOY',
+              },
+              {
+                name: 'CLOUDFRONT_DOMAIN',
+                value: props.mediaCloudfrontDomain,
+              },
+            ],
+            runtimeEnvironmentSecrets: [
+              {
                 name: 'DATABASE_URL',
-                value: `ssm:/bonsight/${props.appEnv}/DATABASE_URL`,
+                value: ssmParameterArn('DATABASE_URL'),
               },
               {
                 name: 'COGNITO_USER_POOL_ID',
-                value: `ssm:/bonsight/${props.appEnv}/COGNITO_USER_POOL_ID`,
+                value: ssmParameterArn('COGNITO_USER_POOL_ID'),
               },
               {
                 name: 'COGNITO_CLIENT_ID',
-                value: `ssm:/bonsight/${props.appEnv}/COGNITO_CLIENT_ID`,
+                value: ssmParameterArn('COGNITO_CLIENT_ID'),
               },
               {
                 name: 'S3_BUCKET_NAME',
-                value: `ssm:/bonsight/${props.appEnv}/S3_BUCKET_NAME`,
-              },
-              {
-                name: 'BEDROCK_REGION',
-                value: cdk.Stack.of(this).region,
+                value: ssmParameterArn('S3_BUCKET_NAME'),
               },
             ],
           },
