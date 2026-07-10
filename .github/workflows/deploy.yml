@@ -1,10 +1,17 @@
 # Required GitHub Secrets (values are registered in GitHub > Settings > Secrets > Actions):
+# --- AWS infrastructure ---
 # AWS_OIDC_ROLE_ARN: arn:aws:iam::<ACCOUNT>:role/github-oidc-bonsight-deploy
 # AWS_REGION: ap-northeast-1
 # ECR_REPOSITORY: bonsight-api
 # APPRUNNER_SERVICE_ARN: arn:aws:apprunner:ap-northeast-1:<ACCOUNT>:service/bonsight-api/<ID>
 # WEB_S3_BUCKET: bonsight-web-prod-<ACCOUNT>
 # WEB_CF_DIST_ID: <CLOUDFRONT_DISTRIBUTION_ID>
+# --- Web build (Vite inlines these at build time) ---
+# VITE_API_BASE_URL: https://<APPRUNNER_SERVICE_URL>/api/v1
+# VITE_COGNITO_USER_POOL_ID: <your-user-pool-id>
+# VITE_COGNITO_CLIENT_ID: <your-app-client-id>
+# VITE_COGNITO_DOMAIN: <your-cognito-domain.auth.ap-northeast-1.amazoncognito.com>
+# VITE_CLOUDFRONT_DOMAIN: https://<XXXXXXXXXX>.cloudfront.net
 # AKIA access keys are not required; this workflow uses GitHub OIDC only.
 
 name: Deploy to Production
@@ -76,6 +83,12 @@ jobs:
             --region ${{ env.AWS_REGION }}
 
       - name: Build web
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_COGNITO_USER_POOL_ID: ${{ secrets.VITE_COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_CLIENT_ID: ${{ secrets.VITE_COGNITO_CLIENT_ID }}
+          VITE_COGNITO_DOMAIN: ${{ secrets.VITE_COGNITO_DOMAIN }}
+          VITE_CLOUDFRONT_DOMAIN: ${{ secrets.VITE_CLOUDFRONT_DOMAIN }}
         run: pnpm --filter web build
 
       - name: Deploy web to S3 + CloudFront
