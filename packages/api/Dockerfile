@@ -14,5 +14,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/packages/api/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/api/generated ./generated
 EXPOSE 3000
 CMD ["node", "dist/src/main"]
