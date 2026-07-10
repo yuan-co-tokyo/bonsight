@@ -1,0 +1,89 @@
+# Required GitHub Secrets (values are registered in GitHub > Settings > Secrets > Actions):
+# AWS_OIDC_ROLE_ARN: arn:aws:iam::<ACCOUNT>:role/github-oidc-bonsight-deploy
+# AWS_REGION: ap-northeast-1
+# ECR_REPOSITORY: bonsight-api
+# APPRUNNER_SERVICE_ARN: arn:aws:apprunner:ap-northeast-1:<ACCOUNT>:service/bonsight-api/<ID>
+# WEB_S3_BUCKET: bonsight-web-prod-<ACCOUNT>
+# WEB_CF_DIST_ID: <CLOUDFRONT_DISTRIBUTION_ID>
+# AKIA access keys are not required; this workflow uses GitHub OIDC only.
+
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Target environment (prod/dev)'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+          - dev
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push api image
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -f packages/api/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Deploy api to App Runner
+        env:
+          APPRUNNER_SERVICE_ARN: ${{ secrets.APPRUNNER_SERVICE_ARN }}
+        run: |
+          aws apprunner start-deployment \
+            --service-arn $APPRUNNER_SERVICE_ARN \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Build web
+        run: pnpm --filter web build
+
+      - name: Deploy web to S3 + CloudFront
+        env:
+          WEB_S3_BUCKET: ${{ secrets.WEB_S3_BUCKET }}
+          WEB_CF_DIST_ID: ${{ secrets.WEB_CF_DIST_ID }}
+        run: |
+          aws s3 sync packages/web/dist s3://$WEB_S3_BUCKET --delete
+          aws cloudfront create-invalidation \
+            --distribution-id $WEB_CF_DIST_ID \
+            --paths "/*"

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck api
+        run: pnpm --filter api exec tsc --noEmit
+
+      - name: Typecheck web
+        run: pnpm --filter web exec tsc --noEmit
+
+      - name: Test api (Jest, SKIP=0 required)
+        run: |
+          pnpm --filter api test -- --json --outputFile=jest-results.json
+          node <<'NODE'
+          const fs = require('fs');
+          const results = JSON.parse(fs.readFileSync('packages/api/jest-results.json', 'utf8'));
+          const skipped = Number(results.numPendingTests || 0);
+          if (skipped > 0) {
+            console.error(`Jest skipped tests detected: ${skipped}. SKIP=0 is required.`);
+            process.exit(1);
+          }
+          NODE
+
+      - name: Test web (vitest, SKIP=0 required)
+        run: |
+          pnpm --filter web test -- --reporter=json --outputFile=vitest-results.json
+          node <<'NODE'
+          const fs = require('fs');
+          const results = JSON.parse(fs.readFileSync('packages/web/vitest-results.json', 'utf8'));
+          const skipped = Number(results.numTodoTests || 0) + Number(results.numPendingTests || 0);
+          if (skipped > 0) {
+            console.error(`Vitest skipped tests detected: ${skipped}. SKIP=0 is required.`);
+            process.exit(1);
+          }
+          NODE
+
+      - name: Build api
+        run: pnpm --filter api build
+
+      - name: Build web
+        run: pnpm --filter web build
