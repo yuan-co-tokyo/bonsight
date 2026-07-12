@@ -12,11 +12,14 @@ export class BonsightMediaStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const appEnv = this.node.tryGetContext('env') ?? 'dev';
+    const isProd = appEnv === 'prod';
+
     // S3バケット（メディア保存用）
     this.bucket = new s3.Bucket(this, 'BonsightMediaBucket', {
-      bucketName: `bonsight-${props?.env?.account ?? 'dev'}-media`,
+      bucketName: `bonsight-media-${appEnv}-${cdk.Stack.of(this).account}`,
       versioned: false,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,  // 本番データ保護
+      removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       cors: [
         {
           allowedOrigins: ['http://localhost:5173', 'http://localhost:8080'],
@@ -60,7 +63,7 @@ export class BonsightMediaStack extends cdk.Stack {
         },
       },
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,  // コスト最適化
-      comment: 'Bonsight Phase1 Media Distribution',
+      comment: `Bonsight ${appEnv} Media Distribution`,
     });
 
     // バケットポリシー: CloudFront OACのみアクセス許可
