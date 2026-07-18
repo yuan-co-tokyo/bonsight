@@ -14,7 +14,7 @@ export interface BonsightApiStackProps extends cdk.StackProps {
 }
 
 export class BonsightApiStack extends cdk.Stack {
-  public readonly repository: ecr.Repository;
+  public readonly repository: ecr.IRepository;
   public readonly service: apprunner.CfnService;
 
   constructor(scope: Construct, id: string, props: BonsightApiStackProps) {
@@ -30,11 +30,11 @@ export class BonsightApiStack extends cdk.Stack {
     const ssmParameterArn = (name: string) =>
       `arn:${stack.partition}:ssm:${stack.region}:${stack.account}:parameter/bonsight/${props.appEnv}/${name}`;
 
-    this.repository = new ecr.Repository(this, 'BonsightApiRepository', {
-      repositoryName: 'bonsight-api',
-      imageScanOnPush: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
+    this.repository = ecr.Repository.fromRepositoryName(
+      this,
+      'BonsightApiRepository',
+      'bonsight-api',
+    );
 
     const accessRole = new iam.Role(this, 'BonsightAppRunnerEcrAccessRole', {
       assumedBy: new iam.ServicePrincipal('build.apprunner.amazonaws.com'),
