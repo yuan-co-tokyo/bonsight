@@ -70,3 +70,53 @@ aws cognito-idp create-user-pool-client \
 - App Client ID はブラウザに公開される（シークレットなしのため安全）
 - .env ファイルには実値を入れて gitignore すること
 - 本番用 User Pool は必ず別途作成（本開発用と共有しない）
+
+## 本番環境用スクリプト
+#!/bin/bash
+set -e
+PROFILE=bonsight-prod
+REGION=ap-northeast-1
+
+# 1. User Pool 作成
+POOL_ID=$(aws cognito-idp create-user-pool \
+  --pool-name bonsight-prod \
+  --region $REGION \
+  --profile $PROFILE \
+  --auto-verified-attributes email \
+  --query 'UserPool.Id' --output text)
+echo "User Pool ID: $POOL_ID"
+
+# 2. MFA必須化 (TOTPソフトウェアトークン)
+aws cognito-idp set-user-pool-mfa-config \
+  --user-pool-id "$POOL_ID" \
+  --mfa-configuration ON \
+  --software-token-mfa-configuration Enabled=true \
+  --region $REGION --profile $PROFILE
+
+# 3. App Client 作成 (callback/logout URLは仮値。WebStackデプロイ後に更新する)
+CLIENT_ID=$(aws cognito-idp create-user-pool-client \
+  --user-pool-id "$POOL_ID" \
+  --client-name bonsight-web-prod \
+  --no-generate-secret \
+  --allowed-o-auth-flows code \
+  --allowed-o-auth-scopes openid email profile \
+  --callback-urls '["https://replace-after-webstack-deploy.invalid/"]' \
+  --logout-urls '["https://replace-after-webstack-deploy.invalid/"]' \
+  --supported-identity-providers COGNITO \
+  --region $REGION \
+  --profile $PROFILE \
+  --query 'UserPoolClient.ClientId' --output text)
+echo "App Client ID: $CLIENT_ID"
+
+# 4. Hosted UI ドメイン作成
+aws cognito-idp create-user-pool-domain \
+  --domain bonsight-prod \
+  --user-pool-id "$POOL_ID" \
+  --region $REGION \
+  --profile $PROFILE
+
+echo ""
+echo "=== 控えておく値 ==="
+echo "COGNITO_USER_POOL_ID = $POOL_ID"
+echo "COGNITO_CLIENT_ID    = $CLIENT_ID"
+echo "Hosted UI Domain     = https://bonsight-prod.auth.$REGION.amazoncognito.com"

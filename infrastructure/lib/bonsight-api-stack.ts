@@ -126,11 +126,11 @@ export class BonsightApiStack extends cdk.Stack {
               },
               {
                 name: 'BEDROCK_DIAGNOSIS_MODEL_ID',
-                value: 'PLACEHOLDER_SET_BEFORE_DEPLOY',
+                value: 'jp.anthropic.claude-sonnet-4-6',
               },
               {
                 name: 'BEDROCK_CHAT_MODEL_ID',
-                value: 'PLACEHOLDER_SET_BEFORE_DEPLOY',
+                value: 'jp.anthropic.claude-haiku-4-5-20251001-v1:0',
               },
               {
                 name: 'CLOUDFRONT_DOMAIN',
