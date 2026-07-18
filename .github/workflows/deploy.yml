@@ -51,13 +51,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Debug ARN secret (temporary, remove after diagnosis)
-        env:
-          ARN: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-        run: |
-          echo "length=${#ARN}"
-          printf '%s' "$ARN" | shasum -a 256
-
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
