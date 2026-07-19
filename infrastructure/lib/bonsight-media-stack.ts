@@ -22,7 +22,9 @@ export class BonsightMediaStack extends cdk.Stack {
       removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       cors: [
         {
-          allowedOrigins: ['http://localhost:5173', 'http://localhost:8080'],
+          allowedOrigins: isProd
+            ? ['https://d1f5x4cp62j2f2.cloudfront.net']
+            : ['http://localhost:5173', 'http://localhost:8080'],
           allowedMethods: [
             s3.HttpMethods.GET,
             s3.HttpMethods.PUT,   // presigned URL アップロード用
