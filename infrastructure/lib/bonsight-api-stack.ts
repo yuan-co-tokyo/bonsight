@@ -55,13 +55,10 @@ export class BonsightApiStack extends cdk.Stack {
     );
     instanceRole.addToPolicy(
       new iam.PolicyStatement({
+        // jp.* 推論プロファイルは内部でap-northeast-1/ap-northeast-3等の複数リージョンへ
+        // 自動ルーティングするため、リージョンを限定する条件は付けない。
         actions: ['bedrock:InvokeModel'],
         resources: ['*'],
-        conditions: {
-          StringEquals: {
-            'aws:RequestedRegion': cdk.Stack.of(this).region,
-          },
-        },
       }),
     );
     instanceRole.addToPolicy(
