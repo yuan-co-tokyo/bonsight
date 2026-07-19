@@ -25,7 +25,11 @@ export class CognitoAuthGuard implements CanActivate {
       const payload = await this.verifier.verify(token);
       request.user = { sub: payload.sub };
       return true;
-    } catch {
+    } catch (err) {
+      console.error('[DIAG] JWT verify failed', err, {
+        userPoolId: process.env.COGNITO_USER_POOL_ID,
+        clientId: process.env.COGNITO_CLIENT_ID,
+      });
       throw new UnauthorizedException();
     }
   }
