@@ -59,35 +59,27 @@ export default function App() {
   useEffect(() => {
     fetchAuthSession()
       .then((session) => {
-        console.log('[DIAG] initial fetchAuthSession OK', session)
         setAuthed(!!session.tokens?.idToken)
       })
-      .catch((err) => {
-        console.log('[DIAG] initial fetchAuthSession FAILED', err)
-        setAuthed(false)
-      })
+      .catch(() => setAuthed(false))
 
     const unsubscribe = Hub.listen('auth', async ({ payload }) => {
-      console.log('[DIAG] Hub auth event', payload.event, JSON.stringify(payload))
       switch (payload.event) {
         case 'signedIn':
           setAuthed(true)
           break
         case 'signInWithRedirect':
           try {
-            const session = await fetchAuthSession()
-            console.log('[DIAG] signInWithRedirect fetchAuthSession OK', session)
+            await fetchAuthSession()
             setAuthed(true)
             if (window.location.search.includes('code=')) {
               window.history.replaceState({}, document.title, window.location.pathname)
             }
-          } catch (err) {
-            console.log('[DIAG] signInWithRedirect fetchAuthSession FAILED', err)
+          } catch {
             setAuthed(false)
           }
           break
         case 'signInWithRedirect_failure':
-          console.log('[DIAG] signInWithRedirect_failure payload', JSON.stringify(payload))
           setAuthed(false)
           break
         case 'signedOut':

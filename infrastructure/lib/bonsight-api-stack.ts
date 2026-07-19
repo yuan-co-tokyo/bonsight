@@ -82,10 +82,24 @@ export class BonsightApiStack extends cdk.Stack {
       }),
     );
 
+    const apiVpcConnectorSecurityGroup = new ec2.SecurityGroup(this, 'BonsightApiVpcConnectorSecurityGroup', {
+      vpc: props.vpc,
+      allowAllOutbound: true,
+      description: 'Security group for Bonsight App Runner VPC connector (private subnet)',
+    });
+    new ec2.CfnSecurityGroupIngress(this, 'DbIngressFromApiVpcConnector', {
+      groupId: props.dbSecurityGroup.securityGroupId,
+      sourceSecurityGroupId: apiVpcConnectorSecurityGroup.securityGroupId,
+      ipProtocol: 'tcp',
+      fromPort: 5432,
+      toPort: 5432,
+      description: 'Allow PostgreSQL from Bonsight API VPC connector (private subnet)',
+    });
+
     const vpcConnector = new apprunner.CfnVpcConnector(this, 'BonsightVpcConnector', {
-      vpcConnectorName: `bonsight-${props.appEnv}-api`,
-      subnets: props.vpc.publicSubnets.map((subnet) => subnet.subnetId),
-      securityGroups: [props.apiSecurityGroup.securityGroupId],
+      vpcConnectorName: `bonsight-${props.appEnv}-api-v2`,
+      subnets: props.vpc.privateSubnets.map((subnet) => subnet.subnetId),
+      securityGroups: [apiVpcConnectorSecurityGroup.securityGroupId],
     });
 
     this.service = new apprunner.CfnService(this, 'BonsightApiService', {
