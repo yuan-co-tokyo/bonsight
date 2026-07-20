@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { BonsightApiStack } from '../lib/bonsight-api-stack';
+import { BonsightBillingStack } from '../lib/bonsight-billing-stack';
 import { BonsightDbStack } from '../lib/bonsight-db-stack';
 import { BonsightMediaStack } from '../lib/bonsight-media-stack';
 import { BonsightWebStack } from '../lib/bonsight-web-stack';
@@ -37,3 +38,8 @@ const apiStack = new BonsightApiStack(app, `BonsightApiStack-${appEnv}`, {
 
 apiStack.addDependency(dbStack);
 apiStack.addDependency(mediaStack);
+
+new BonsightBillingStack(app, `BonsightBillingStack-${appEnv}`, {
+  appEnv,
+  env: stackEnv,
+});
