@@ -78,6 +78,35 @@ callback/logout URLはWebStackデプロイ後に判明する実CloudFront URLに
 # 正: bonsight-prod.auth.ap-northeast-1.amazoncognito.com
 ```
 
+### セルフサインアップの制限（コスト事故防止）
+
+不特定多数がサインアップしてAI診断（Bedrock呼び出し）を乱用すると想定外のコストが発生するため、
+運用初期は**Hosted UIからの自己登録を無効化**している。
+
+```bash
+aws cognito-idp update-user-pool \
+  --profile bonsight-prod --region ap-northeast-1 \
+  --user-pool-id <POOL_ID> \
+  --admin-create-user-config AllowAdminCreateUserOnly=true \
+  --auto-verified-attributes email
+```
+
+無効化後は、Hosted UIの「Sign up」から登録しようとすると `Signup is not allowed.` エラーになる
+（想定通りの挙動）。既存ユーザーのログインには影響しない。
+
+新しい利用者を招待したい場合は、`admin-create-user`で手動発行する（実行後、本人へ仮パスワードが自動送信される）。
+
+```bash
+aws cognito-idp admin-create-user \
+  --user-pool-id <POOL_ID> \
+  --username <招待したい人のメールアドレス> \
+  --user-attributes Name=email,Value=<同じメールアドレス> Name=email_verified,Value=true \
+  --region ap-northeast-1 --profile bonsight-prod
+```
+
+複数人での利用を前提にする場合は、この制限を解除した上で、AI診断のレート制限（1ユーザー1日N回等）や
+AWS Budgetsのハード上限アラートなど別途コスト対策を検討すること。
+
 App Runner が参照するSSMパラメータは以下を登録する。実値はAWS上だけに置き、リポジトリへ書かない。
 
 | SSM Parameter | Type | 用途 |
