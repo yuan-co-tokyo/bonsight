@@ -111,6 +111,18 @@ prodアカウント（`--profile bonsight-prod`）側で実施する。
       検証観点: Bedrockコンソール →「Model access」で該当モデルが `Access granted` と表示される。
 - [ ] GitHub OIDC プロバイダ + IAM ロールを作成した（Phase 0-(e) で実施済み）
       検証観点: Phase 0-(e) の各チェックが完了している。
+- [ ] Cognito User Pool / App Client / Hosted UIドメインを作成した（手動、CDK管理外）
+      **`--username-attributes email` を作成時に指定すること**
+      （作成後は変更不可。付け忘れるとサインアップ時に汎用エラーになりPool再作成が必要になる）
+      検証観点: `aws cognito-idp describe-user-pool` の `UsernameAttributes` に `email` が含まれる。
+  - [ ] MFAを使う場合は`OPTIONAL`にした（`ON`必須にするとHosted UI経由のセルフサインアップが
+        TOTP設定導線の欠如により失敗する）
+        検証観点: `aws cognito-idp get-user-pool-mfa-config` の `MfaConfiguration` が
+        `OFF` または `OPTIONAL`。
+  - [ ] App Client作成時に `--allowed-o-auth-flows-user-pool-client` を明示的に付与した
+        検証観点: `aws cognito-idp describe-user-pool-client` の
+        `AllowedOAuthFlowsUserPoolClient` が `true`。
+      参考: [production-deploy.md §1](production-deploy.md) の「Cognito User Pool 作成時の必須オプション」節。
 - [ ] 以下のSSMパラメータ（SecureString）をprodアカウントに手動投入した
       （`--profile bonsight-prod` で実行、実値はAWS上のみに置きリポジトリへ書かない）
   - [ ] `/bonsight/prod/DATABASE_URL`
@@ -161,17 +173,25 @@ prodアカウント（`--profile bonsight-prod`）側で実施する。
       検証観点: カレントディレクトリが `infrastructure` である。
 - [ ] 初回のみ `npx cdk bootstrap aws://<ACCOUNT_ID>/ap-northeast-1 --profile bonsight-prod` を実行した
       検証観点: `CDKToolkit` スタックがprodアカウントのCloudFormationに `CREATE_COMPLETE` で存在する。
-- [ ] `npx cdk deploy BonsightDbStack -c env=prod --profile bonsight-prod` を実行した
-      検証観点: `BonsightDbStack` が `CREATE_COMPLETE` になり、RDSインスタンスが作成される。
-- [ ] `npx cdk deploy BonsightMediaStack -c env=prod --profile bonsight-prod` を実行した
-      検証観点: `BonsightMediaStack` が `CREATE_COMPLETE` になり、`CloudFrontDomain` output
+- [ ] `npx cdk deploy BonsightDbStack-prod -c env=prod --profile bonsight-prod` を実行した
+      （**スタック名に`-prod`サフィックスが必須**。`bin/infrastructure.ts`で
+      `BonsightXxxStack-${appEnv}`と命名されているため、サフィックス無しだと
+      「スタックが見つからない」エラーになる）
+      検証観点: `BonsightDbStack-prod` が `CREATE_COMPLETE` になり、RDSインスタンスと
+      NAT Gateway・プライベートサブネットが作成される。
+- [ ] `npx cdk deploy BonsightMediaStack-prod -c env=prod --profile bonsight-prod` を実行した
+      検証観点: `BonsightMediaStack-prod` が `CREATE_COMPLETE` になり、`CloudFrontDomain` output
       （`https://<xxx>.cloudfront.net`）が確認できる。
-- [ ] `npx cdk deploy BonsightWebStack -c env=prod --profile bonsight-prod` を実行した
-      検証観点: `BonsightWebStack` が `CREATE_COMPLETE` になる。
+- [ ] `npx cdk deploy BonsightWebStack-prod -c env=prod --profile bonsight-prod` を実行した
+      検証観点: `BonsightWebStack-prod` が `CREATE_COMPLETE` になる。
+- [ ] ApiStack初回デプロイ前に、`bonsight-api` ECRリポジトリへ`:latest`タグ付きDockerイメージを
+      手動push済み（`--platform linux/amd64`必須。Apple Siliconでの無指定ビルドはApp Runner上で
+      exec formatエラーによりコンテナが即クラッシュする）
+      検証観点: `aws ecr list-images --repository-name bonsight-api` で`latest`タグが確認できる。
 - [ ] MediaStackのCloudFront URLがクロススタック参照でApiStackの `CLOUDFRONT_DOMAIN` に
-      渡ることを踏まえ、MediaStack完了後に `npx cdk deploy BonsightApiStack -c env=prod --profile bonsight-prod`
+      渡ることを踏まえ、MediaStack完了後に `npx cdk deploy BonsightApiStack-prod -c env=prod --profile bonsight-prod`
       を実行した
-      検証観点: `BonsightApiStack` が `CREATE_COMPLETE` になり、App Runnerサービスが
+      検証観点: `BonsightApiStack-prod` が `CREATE_COMPLETE` になり、App Runnerサービスが
       `RUNNING` 状態になる。
 
 ## Phase 3: DBマイグレーション（`production-deploy.md` §3 対応）
@@ -179,9 +199,12 @@ prodアカウント（`--profile bonsight-prod`）側で実施する。
 - [ ] 本番DB接続情報がSSM Parameter Storeまたは実行環境変数から供給されることを確認し、
       手元の `.env` や秘密値をコミットしていないことを確認した
       検証観点: `git status` / `git diff` に `.env` やDB接続文字列を含むファイルが含まれない。
-- [ ] `pnpm --filter api prisma migrate deploy` を本番DB接続情報が解決できる環境で実行した
-      検証観点: コマンドが正常終了し、Prismaが「No pending migrations」または
-      適用したマイグレーション一覧を出力する。
+- [ ] マイグレーションはコンテナ起動時に自動実行される（`packages/api/Dockerfile`のCMDで
+      `npx prisma migrate deploy && node dist/src/main`）。RDSが非公開サブネットにあり
+      ローカルから直接実行する経路が無いための設計。手動実行は不要
+      検証観点: App Runnerのapplication logに
+      `All migrations have been successfully applied.` が出力されている
+      （`aws logs tail /aws/apprunner/bonsight-prod-api/<service-id>/application`）。
 
 ## Phase 4: CI/CD 有効化（`production-deploy.md` §4 対応）
 
@@ -207,12 +230,24 @@ App Runner URL または CloudFront URL で以下を確認する。
 - [ ] 画像アップロードとCloudFront配信が動作する
       検証観点: アップロードした画像がCloudFront URL経由で表示される。
 
+## Phase 10: 課金通知（`production-deploy.md` §10 対応、任意）
+
+- [ ] Slack Incoming Webhookを作成した
+      検証観点: `https://hooks.slack.com/services/...` 形式のURLを取得済み。
+- [ ] `/bonsight/prod/SLACK_BILLING_WEBHOOK_URL` をSSM SecureStringへ登録した
+      検証観点: `aws ssm get-parameter --name /bonsight/prod/SLACK_BILLING_WEBHOOK_URL --with-decryption`
+      が値を返す（値自体はログや本チェックリストに書かない）。
+- [ ] `npx cdk deploy BonsightBillingStack-prod -c env=prod --profile bonsight-prod` を実行した
+      検証観点: `BonsightBillingStack-prod` が `CREATE_COMPLETE` になる。
+- [ ] Lambdaを手動実行してSlackに通知が届くことを確認した
+      検証観点: `aws lambda invoke` が `StatusCode: 200` を返し、Slackチャンネルにメッセージが投稿される。
+
 ---
 
 ## 自己チェック（作成者記入）
 
-- [ ] `production-deploy.md` のセクション番号（§1〜§9）・SSMパラメータ名・GitHub Secrets名・
-      `cdk deploy` の実行順序（DbStack → MediaStack → WebStack → ApiStack）と本ファイルの
-      記述が完全一致していることを確認した。
+- [ ] `production-deploy.md` のセクション番号（§1〜§10）・SSMパラメータ名・GitHub Secrets名・
+      `cdk deploy` の実行順序（DbStack → MediaStack → WebStack → ApiStack → BillingStack）と
+      本ファイルの記述が完全一致していることを確認した。
 - [ ] 本ファイル中に実値（AWSアカウントID・ARN・パスワード・Secrets値等）が
       存在しないことを `grep` 等で確認した。
