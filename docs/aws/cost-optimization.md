@@ -174,7 +174,7 @@ AWS側を**ほぼ$2/mo（S3/CloudFront等）**まで下げられる。ProはApp 
    - Session modeはIPv4対応（App RunnerのPUBLIC egressから到達可）かつDDL/マイグレーションが通る。
    - 例: `postgresql://prisma.<project-ref>:<pass>@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require`
    - ❌ Transaction mode（ポート 6543）を単独の `DATABASE_URL` にしない。
-     `prisma migrate deploy` やprepared statementで失敗しやすい（migrate用には直結/Session modeが必要）。
+     現構成ではアプリとmigrationが同じURLを使う一方、`prisma migrate deploy`には直結またはSession modeが必要。
    - ❌ 直結ホスト（`db.<ref>.supabase.co:5432`）はFree/新規プロジェクトでIPv6のみのことがあり、
      App RunnerのIPv4 egressから繋がらない場合がある。Supavisor経由（`...pooler.supabase.com`）が無難。
 
@@ -185,9 +185,10 @@ AWS側を**ほぼ$2/mo（S3/CloudFront等）**まで下げられる。ProはApp 
    >
    > ⚠️ 本プロジェクトの実行経路はPrisma query engineではなく **node-postgres driver adapter（`PrismaPg`、
    > `src/prisma/prisma.service.ts`）**。Transaction mode（6543）でよく使う `?pgbouncer=true` は
-   > **Prisma query engine用フラグでdriver adapter経由では無視される**（prepared statementが無効化されない）。
-   > 6543へ移す場合はURLパラメータに頼らず、`PrismaPg`（node-postgres）側でprepared statementを無効化する対応が必要。
-   > Session mode（5432）ではprepared statementをそのまま使えるため、この問題は起きない。
+   > Prisma query engine向けの指定であり、driver adapterの制御には使わない。
+   > 現在の`PrismaPg`初期化では`statementNameGenerator`を指定していないため、名前付きprepared statementは
+   > キャッシュされない。アプリ実行時は6543を利用できる可能性があるが、`prisma migrate deploy`には
+   > 直結またはSession modeが必要なので、6543へ移す場合は前述のとおりURLを分離する。
    > なお `?sslmode=require` は `pg` が解釈するため、現行のdriver adapter経路でも有効。
 
 4. データ投入・スキーマ適用は不要（A-4 のデプロイ時に `prisma migrate deploy` が空DBへ自動でテーブルを作成する）。
