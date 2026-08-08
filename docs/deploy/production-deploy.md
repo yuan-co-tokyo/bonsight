@@ -29,6 +29,30 @@ NAT GatewayはApp Runner/RDSのように一時停止できず、削除するか�
 - GitHub Secrets 登録
 - Slack Incoming Webhook作成（課金通知を使う場合。§10参照）
 
+### Bedrock Anthropicモデルの初回有効化
+
+Anthropicモデルはユースケース申請に加え、モデルごとのAWS Marketplace初回購読が必要。
+App Runnerの実行ロールには購読権限を付けず、`aws-marketplace:Subscribe` / `ViewSubscriptions`を持つ
+管理者ロールで、デプロイ前に利用する各モデルを一度だけ最小トークンで呼び出す。
+
+```bash
+aws bedrock-runtime converse \
+  --model-id jp.anthropic.claude-sonnet-4-6 \
+  --messages '[{"role":"user","content":[{"text":"Reply with OK."}]}]' \
+  --inference-config '{"maxTokens":8,"temperature":0}' \
+  --profile bonsight-prod --region ap-northeast-1
+
+aws bedrock-runtime converse \
+  --model-id jp.anthropic.claude-haiku-4-5-20251001-v1:0 \
+  --messages '[{"role":"user","content":[{"text":"Reply with OK."}]}]' \
+  --inference-config '{"maxTokens":8,"temperature":0}' \
+  --profile bonsight-prod --region ap-northeast-1
+```
+
+初回呼び出しが`AccessDeniedException`になっても購読処理がバックグラウンドで開始される場合があるため、
+IAMシミュレーションでMarketplace権限が許可されていることを確認した上で2分ほど待って再試行する。
+一度購読が完了すれば、App Runnerロールは`bedrock:InvokeModel`だけで呼び出せる。
+
 ### Cognito User Pool 作成時の必須オプション（要注意・ハマりどころ）
 
 User Poolは`aws cognito-idp create-user-pool`で作成するが、以下2点を**作成時に**指定し忘れると詰む（`UsernameAttributes`は作成後に変更不可のためUser Pool再作成が必要になる）。

@@ -1,15 +1,11 @@
 import * as cdk from 'aws-cdk-lib';
 import * as apprunner from 'aws-cdk-lib/aws-apprunner';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
-import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 export interface BonsightApiStackProps extends cdk.StackProps {
   readonly appEnv: string;
-  readonly vpc: ec2.IVpc;
-  readonly apiSecurityGroup: ec2.ISecurityGroup;
-  readonly dbSecurityGroup: ec2.ISecurityGroup;
   readonly mediaCloudfrontDomain: string;
 }
 
@@ -79,26 +75,6 @@ export class BonsightApiStack extends cdk.Stack {
       }),
     );
 
-    const apiVpcConnectorSecurityGroup = new ec2.SecurityGroup(this, 'BonsightApiVpcConnectorSecurityGroup', {
-      vpc: props.vpc,
-      allowAllOutbound: true,
-      description: 'Security group for Bonsight App Runner VPC connector (private subnet)',
-    });
-    new ec2.CfnSecurityGroupIngress(this, 'DbIngressFromApiVpcConnector', {
-      groupId: props.dbSecurityGroup.securityGroupId,
-      sourceSecurityGroupId: apiVpcConnectorSecurityGroup.securityGroupId,
-      ipProtocol: 'tcp',
-      fromPort: 5432,
-      toPort: 5432,
-      description: 'Allow PostgreSQL from Bonsight API VPC connector (private subnet)',
-    });
-
-    const vpcConnector = new apprunner.CfnVpcConnector(this, 'BonsightVpcConnector', {
-      vpcConnectorName: `bonsight-${props.appEnv}-api-v2`,
-      subnets: props.vpc.privateSubnets.map((subnet) => subnet.subnetId),
-      securityGroups: [apiVpcConnectorSecurityGroup.securityGroupId],
-    });
-
     this.service = new apprunner.CfnService(this, 'BonsightApiService', {
       serviceName: `bonsight-${props.appEnv}-api`,
       instanceConfiguration: {
@@ -108,8 +84,7 @@ export class BonsightApiStack extends cdk.Stack {
       },
       networkConfiguration: {
         egressConfiguration: {
-          egressType: 'VPC',
-          vpcConnectorArn: vpcConnector.attrVpcConnectorArn,
+          egressType: 'DEFAULT',
         },
       },
       sourceConfiguration: {
@@ -170,9 +145,6 @@ export class BonsightApiStack extends cdk.Stack {
         },
       },
     });
-
-    this.service.node.addDependency(vpcConnector);
-    this.service.node.addDependency(props.dbSecurityGroup);
 
     new cdk.CfnOutput(this, 'ApiRepositoryUri', {
       value: this.repository.repositoryUri,

@@ -1,17 +1,34 @@
-// import * as cdk from 'aws-cdk-lib/core';
-// import { Template } from 'aws-cdk-lib/assertions';
-// import * as Infrastructure from '../lib/infrastructure-stack';
+import * as cdk from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+import { BonsightApiStack } from '../lib/bonsight-api-stack';
 
-// example test. To run these tests, uncomment this file along with the
-// example resource in lib/infrastructure-stack.ts
-test('SQS Queue Created', () => {
-//   const app = new cdk.App();
-//     // WHEN
-//   const stack = new Infrastructure.InfrastructureStack(app, 'MyTestStack');
-//     // THEN
-//   const template = Template.fromStack(stack);
+describe('BonsightApiStack', () => {
+  const createTemplate = () => {
+    const app = new cdk.App();
+    const stack = new BonsightApiStack(app, 'BonsightApiStack-test', {
+      appEnv: 'test',
+      mediaCloudfrontDomain: 'https://media.example.com',
+      env: {
+        account: '123456789012',
+        region: 'ap-northeast-1',
+      },
+    });
 
-//   template.hasResourceProperties('AWS::SQS::Queue', {
-//     VisibilityTimeout: 300
-//   });
+    return Template.fromStack(stack);
+  };
+
+  test('uses public egress without a VPC connector', () => {
+    const template = createTemplate();
+
+    template.hasResourceProperties('AWS::AppRunner::Service', {
+      NetworkConfiguration: {
+        EgressConfiguration: {
+          EgressType: 'DEFAULT',
+        },
+      },
+    });
+    template.resourceCountIs('AWS::AppRunner::VpcConnector', 0);
+    template.resourceCountIs('AWS::EC2::SecurityGroup', 0);
+    template.resourceCountIs('AWS::EC2::SecurityGroupIngress', 0);
+  });
 });

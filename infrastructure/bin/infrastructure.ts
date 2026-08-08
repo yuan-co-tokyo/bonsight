@@ -13,7 +13,9 @@ const stackEnv = {
   region: process.env.CDK_DEFAULT_REGION ?? 'ap-northeast-1',
 };
 
-const dbStack = new BonsightDbStack(app, `BonsightDbStack-${appEnv}`, {
+// Keep the legacy DB stack in the CDK app until the Supabase cutover has been
+// verified and the stack has been destroyed explicitly.
+new BonsightDbStack(app, `BonsightDbStack-${appEnv}`, {
   appEnv,
   env: stackEnv,
 });
@@ -29,14 +31,10 @@ new BonsightWebStack(app, `BonsightWebStack-${appEnv}`, {
 
 const apiStack = new BonsightApiStack(app, `BonsightApiStack-${appEnv}`, {
   appEnv,
-  vpc: dbStack.vpc,
-  apiSecurityGroup: dbStack.apiSecurityGroup,
-  dbSecurityGroup: dbStack.dbSecurityGroup,
   mediaCloudfrontDomain: `https://${mediaStack.distribution.distributionDomainName}`,
   env: stackEnv,
 });
 
-apiStack.addDependency(dbStack);
 apiStack.addDependency(mediaStack);
 
 new BonsightBillingStack(app, `BonsightBillingStack-${appEnv}`, {

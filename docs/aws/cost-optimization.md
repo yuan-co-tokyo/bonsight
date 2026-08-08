@@ -172,7 +172,7 @@ AWS側を**ほぼ$2/mo（S3/CloudFront等）**まで下げられる。ProはApp 
 
    → **推奨: Supavisor の Session mode（ポート 5432）を `DATABASE_URL` に使う。**
    - Session modeはIPv4対応（App RunnerのPUBLIC egressから到達可）かつDDL/マイグレーションが通る。
-   - 例: `postgresql://prisma.<project-ref>:<pass>@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require`
+   - 例: `postgresql://prisma.<project-ref>:<pass>@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require&uselibpqcompat=true`
    - ❌ Transaction mode（ポート 6543）を単独の `DATABASE_URL` にしない。
      現構成ではアプリとmigrationが同じURLを使う一方、`prisma migrate deploy`には直結またはSession modeが必要。
    - ❌ 直結ホスト（`db.<ref>.supabase.co:5432`）はFree/新規プロジェクトでIPv6のみのことがあり、
@@ -189,17 +189,22 @@ AWS側を**ほぼ$2/mo（S3/CloudFront等）**まで下げられる。ProはApp 
    > 現在の`PrismaPg`初期化では`statementNameGenerator`を指定していないため、名前付きprepared statementは
    > キャッシュされない。アプリ実行時は6543を利用できる可能性があるが、`prisma migrate deploy`には
    > 直結またはSession modeが必要なので、6543へ移す場合は前述のとおりURLを分離する。
-   > なお `?sslmode=require` は `pg` が解釈するため、現行のdriver adapter経路でも有効。
+   > なお現行のdriver adapterは`pg` / `pg-connection-string`を使う。`sslmode=require`だけでは
+   > 現行バージョンが`verify-full`相当として解釈し、Supavisorへの接続時に
+   > `self-signed certificate in certificate chain`となる場合がある。そのためlibpq本来の
+   > `require`（TLS必須・CA/ホスト名検証なし）を明示する`uselibpqcompat=true`を併記する。
+   > CA/ホスト名まで検証する場合はSupabase DashboardからCA証明書を取得し、別途
+   > `sslmode=verify-full`で利用できるようコンテナへ組み込む。
 
 4. データ投入・スキーマ適用は不要（A-4 のデプロイ時に `prisma migrate deploy` が空DBへ自動でテーブルを作成する）。
-   ※ `sslmode=require`（TLS）は必須。DBパスワードは強固なものにする。
+   ※ `sslmode=require&uselibpqcompat=true`（TLS）は必須。DBパスワードは強固なものにする。
 
 #### A-2. SSM の DATABASE_URL を差し替え
 
 ```bash
 aws ssm put-parameter --profile bonsight-prod --region ap-northeast-1 \
   --name /bonsight/prod/DATABASE_URL --type SecureString --overwrite \
-  --value "postgresql://prisma.<project-ref>:<url-encoded-pass>@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require"
+  --value "postgresql://prisma.<project-ref>:<url-encoded-pass>@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require&uselibpqcompat=true"
 ```
 
 パスワード中の予約文字はURLエンコードする。このコマンドの実値をシェル履歴・CIログ・チャットへ残さない。
@@ -427,7 +432,7 @@ aws apprunner resume-service --service-arn "$APP_ARN" --region ap-northeast-1 --
 - **NAT Gateway 削除の影響**: 旧構成のままVPC/NATを消すと、App Runner が Bedrock/Cognito/S3 に到達できず
   ログイン・AI診断・画像が動かなくなる。**必ず Plan A（PUBLIC egress化）とセットで撤去**すること。
 - **外部公開DBのセキュリティ**: Plan AのSupabase公開エンドポイントでは、
-  強固なパスワード + `sslmode=require`（TLS強制）を必須とし、デフォルトの`postgres`ではなくPrisma専用ロールを使う。
+  強固なパスワード + `sslmode=require&uselibpqcompat=true`（TLS強制）を必須とし、デフォルトの`postgres`ではなくPrisma専用ロールを使う。
   自前RDS/Auroraの公開は送信元をApp Runnerだけに制限できないため、本書では採用しない。
 - **Supabase Freeの可用性・バックアップ**: 低活動状態による停止後はStudioからの手動Resumeが必要。
   Freeでは本番向けのバックアップ・可用性を前提にせず、利用者データを保全する段階ではProまたは定期的な

@@ -107,8 +107,13 @@ prodアカウント（`--profile bonsight-prod`）側で実施する。
 
 ## Phase 1: 前提条件（`production-deploy.md` §1 対応）
 
-- [ ] Bedrock（ap-northeast-1）で `jp.claude` モデルへのアクセスを有効化した
-      検証観点: Bedrockコンソール →「Model access」で該当モデルが `Access granted` と表示される。
+- [ ] Bedrock（ap-northeast-1）でAnthropicのユースケース申請を完了した
+      検証観点: `aws bedrock get-use-case-for-model-access --profile bonsight-prod --region ap-northeast-1`が
+      登録済みフォームを返す。
+- [ ] 管理者ロールで診断用Sonnet 4.6とチャット用Haiku 4.5を一度ずつ呼び出し、
+      モデルごとのAWS Marketplace初回購読を完了した
+      検証観点: `production-deploy.md` §1の最小`converse`コマンドが両方とも成功する。
+      App Runner実行ロールへ`aws-marketplace:Subscribe`を恒久付与しないこと。
 - [ ] GitHub OIDC プロバイダ + IAM ロールを作成した（Phase 0-(e) で実施済み）
       検証観点: Phase 0-(e) の各チェックが完了している。
 - [ ] Cognito User Pool / App Client / Hosted UIドメインを作成した（手動、CDK管理外）
