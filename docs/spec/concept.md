@@ -42,7 +42,7 @@
 ## 技術スタック（決定事項）
 - **言語/フロント**: React + TypeScript + Vite（my_crm の知見を再利用）
 - **バックエンド**: NestJS + Prisma（API-first / REST・JSON `/api/v1`）
-- **DB**: PostgreSQL（RDS、または Aurora Serverless v2）
+- **DB**: Supabase Postgres（東京リージョン、App RunnerからSession pooler経由で接続）
 - **認証**: **Amazon Cognito**（User Pool / JWT。Phase1は Hosted UI＋メール/パスワードで最短、
   後にソーシャルログイン・独自UIへ拡張）。アプリDBは Cognito の `sub` でユーザーを紐付け、
   認証情報は二重に持たない。
@@ -206,7 +206,7 @@ User (Cognito sub / 表示名 / 地域・気候帯 ← 世話アドバイス精�
 - [ ] `bonsight.ai` 等ドメイン＆商標（J-PlatPat / USPTO）の空き確認 → 名称最終確定。
 - [ ] 本一覧を基に Claude Design で Phase1 画面UIを作成（殿が実施）。
 - [ ] UI確定後、本書を更新し、家老へ実装下知（cmd）を発する。
-- [ ] （任意）コスト試算（Bedrock 推論・S3/CloudFront・RDS/Fargate）。
+- [ ] （任意）コスト試算（Bedrock 推論・S3/CloudFront・App Runner・Supabase）。
 
 ## 注意事項
 - 本書は構想段階のまとめ。実装はまだ着手しない。決定が変われば即更新する。

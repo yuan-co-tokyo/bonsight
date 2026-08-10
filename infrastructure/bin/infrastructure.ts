@@ -2,7 +2,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { BonsightApiStack } from '../lib/bonsight-api-stack';
 import { BonsightBillingStack } from '../lib/bonsight-billing-stack';
-import { BonsightDbStack } from '../lib/bonsight-db-stack';
 import { BonsightMediaStack } from '../lib/bonsight-media-stack';
 import { BonsightWebStack } from '../lib/bonsight-web-stack';
 
@@ -12,13 +11,6 @@ const stackEnv = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
   region: process.env.CDK_DEFAULT_REGION ?? 'ap-northeast-1',
 };
-
-// Keep the legacy DB stack in the CDK app until the Supabase cutover has been
-// verified and the stack has been destroyed explicitly.
-new BonsightDbStack(app, `BonsightDbStack-${appEnv}`, {
-  appEnv,
-  env: stackEnv,
-});
 
 const mediaStack = new BonsightMediaStack(app, `BonsightMediaStack-${appEnv}`, {
   env: stackEnv,
