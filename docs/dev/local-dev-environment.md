@@ -77,7 +77,7 @@ Cognito / S3 / Bedrock の環境変数も SSO 資格情報も渡らないため�
   ├─ API (NestJS, :3000)
   │     ├─ DB     → ローカル Postgres
   │     ├─ 認証   → dev認証バイパス（固定 sub を注入）★
-  │     ├─ メディア → MinIO（presigned PUT / GET）
+  │     ├─ メディア → MinIO（presigned PUT / dev限定の匿名read GET）
   │     └─ AI     → 実 Bedrock（bonsight-dev の SSO 認証）  ← 唯一のクラウド依存
   └─ Web (Vite dev, :5173)                  … Web ローカル
         └─ ログインUIはスキップ（バイパス時）or ダミートークン
@@ -218,6 +218,21 @@ export class S3Module {}
 // 各Serviceは constructor(@Inject(S3_CLIENT) private readonly s3: S3Client) で受け取る
 ```
 
+`@Global()`を付けたModuleも、アプリケーションへ一度は登録する必要がある。`AppModule`の
+`imports`に`S3Module`を追加する。`@Global()`を使わない場合は、`MediaModule` / `BonsaiModule` /
+`AdviceModule`のそれぞれで`S3Module`をimportする。
+
+```ts
+// packages/api/src/app.module.ts（@Global()を使う場合）
+@Module({
+  imports: [
+    S3Module,
+    // ...既存Module
+  ],
+})
+export class AppModule {}
+```
+
 - `docker-compose` に MinIO を追加（S3互換, `:9000` API / `:9001` コンソール）。
 - 起動時に開発用バケット（例 `bonsight-dev-media`）を作成し、**localhost:5173 からの PUT を許可する CORS** を設定。
 - 配信URL（`CLOUDFRONT_DOMAIN`）は MinIO の公開URL（例 `http://localhost:9000/bonsight-dev-media`）に読み替える。
@@ -311,6 +326,11 @@ docker-compose up -d db minio
 
 # 2) API（.env は Tier 1 設定: DEV_AUTH_BYPASS=true / S3_ENDPOINT=... ）
 cd packages/api && cp .env.example .env   # 初回のみ、Tier1向けに編集
+# APIをlocalhostだけに公開し、固定の開発ユーザーで認証をバイパス
+# packages/api/.env に以下を設定する
+# HOST=127.0.0.1
+# DEV_AUTH_BYPASS=true
+# DEV_AUTH_SUB=dev-user-0001
 npx prisma migrate dev                      # 初回・スキーマ変更時
 cd ../.. && pnpm --filter api start:dev     # http://localhost:3000（ホットリロード）
 
@@ -371,7 +391,8 @@ pnpm --filter web dev                         # 実Cognito Hosted UIでログイ
 > - **Guardの遅延初期化**（`verifier` をフィールド初期化子から getter へ。バイパス時にCognito環境変数不要にする）
 > - **Web側の切替**（`App.tsx` の `fetchAuthSession` スキップ分岐、`api/client.ts` の挙動）
 > - **共通 S3 Provider への集約**（`useFactory` で S3Module 化し export/import または `@Global()`。
->   Media/Bonsai/Advice の3クライアントを一元化。診断画像取得・削除も MinIO を向く）
+>   `@Global()`の場合も`AppModule`へ一度importする。Media/Bonsai/Advice の3クライアントを一元化し、
+>   診断画像取得・削除も MinIO を向く）
 > - **画像表示の対応**（MinIO開発バケットの匿名read許可、または表示用 presigned GET の実装。
 >   現行は `${CLOUDFRONT_DOMAIN}/${s3Key}` 直リンクで private だと表示不可）
 > - **資格情報分離**（`S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY` を S3クライアントにだけ注入し、Bedrockと競合させない）
