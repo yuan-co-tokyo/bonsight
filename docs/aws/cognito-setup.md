@@ -31,7 +31,8 @@
 
 1. User Pool → 「アプリケーション」→「Hosted UI」
 2. Cognitoドメインを選択: `bonsight-dev.auth.ap-northeast-1.amazoncognito.com` 等
-3. メモ: **Hosted UI ドメイン** (https://bonsight-dev.auth.ap-northeast-1.amazoncognito.com)
+3. メモ: **Hosted UI ドメイン**（例: `bonsight-dev.auth.ap-northeast-1.amazoncognito.com`）。
+   `VITE_COGNITO_DOMAIN`にはスキーム（`https://`）を含めない。
 
 ## 4. CLI で作成する場合 (代替手順)
 
@@ -61,7 +62,7 @@ aws cognito-idp create-user-pool-client \
 |------|-----|------|
 | VITE_COGNITO_USER_POOL_ID | ap-northeast-1_XXXXXXXXX | web |
 | VITE_COGNITO_CLIENT_ID | xxxxxxxxxxxxxxxxxxxxxxxxxx | web |
-| VITE_COGNITO_DOMAIN | https://bonsight-dev.auth.ap-northeast-1.amazoncognito.com | web |
+| VITE_COGNITO_DOMAIN | bonsight-dev.auth.ap-northeast-1.amazoncognito.com | web |
 | COGNITO_USER_POOL_ID | ap-northeast-1_XXXXXXXXX | api (JWT検証) |
 | COGNITO_CLIENT_ID | xxxxxxxxxxxxxxxxxxxxxxxxxx | api |
 | AWS_REGION | ap-northeast-1 | api |
