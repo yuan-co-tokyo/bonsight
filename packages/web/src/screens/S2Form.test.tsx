@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -41,6 +41,64 @@ describe('S2Form', () => {
     mockUpdateBonsai.mockReset()
     mockGetCoverPresignUrl.mockReset()
     mockCreateBonsai.mockResolvedValue({ id: 'created-1' })
+  })
+
+  it('nullの樹齢は空欄、ISO日付は日付入力欄に表示する', async () => {
+    mockGetBonsai.mockResolvedValue({ name: '松', estimatedAge: null, acquiredAt: '2026-06-01T00:00:00.000Z' })
+    renderS2Form('/bonsai/b1/edit')
+    await screen.findByDisplayValue('松')
+    expect(screen.getByLabelText('樹齢')).toHaveValue(null)
+    expect(screen.getByLabelText('入手日')).toHaveValue('2026-06-01')
+    expect(screen.queryByDisplayValue('null')).not.toBeInTheDocument()
+  })
+
+  it('編集で空欄にした任意項目をnullで送る', async () => {
+    mockGetBonsai.mockResolvedValue({ name: '松', species: '黒松', estimatedAge: 25, acquiredAt: '2026-06-01T00:00:00.000Z', style: '直幹', currentState: '元気', origin: '購入' })
+    const user = userEvent.setup()
+    renderS2Form('/bonsai/b1/edit')
+    await screen.findByDisplayValue('松')
+    for (const label of ['樹種', '樹齢', '入手日', 'メモ']) fireEvent.change(screen.getByLabelText(label), { target: { value: '' } })
+    await user.selectOptions(screen.getByLabelText('樹形'), '')
+    await user.click(screen.getByRole('button', { name: '購入' }))
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    expect(mockUpdateBonsai).toHaveBeenCalledWith('b1', expect.objectContaining({ species: null, estimatedAge: null, acquiredAt: null, style: null, currentState: null, origin: null }))
+  })
+
+  it.each(['-1', '1.5', '2147483648'])('不正な樹齢%sは送信しない', async (value) => {
+    renderS2Form()
+    fireEvent.change(screen.getByLabelText('名前・愛称'), { target: { value: '松' } })
+    fireEvent.change(screen.getByLabelText('樹齢'), { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('整数')
+    expect(mockCreateBonsai).not.toHaveBeenCalled()
+  })
+
+  it('ブラウザが数値に変換できない入力も送信しない', () => {
+    renderS2Form()
+    fireEvent.change(screen.getByLabelText('名前・愛称'), { target: { value: '松' } })
+    const age = screen.getByLabelText('樹齢')
+    Object.defineProperty(age, 'validity', { configurable: true, value: { badInput: true } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('整数')
+    expect(mockCreateBonsai).not.toHaveBeenCalled()
+  })
+
+  it('樹齢0を数値として送信する', async () => {
+    const user = userEvent.setup()
+    renderS2Form()
+    await user.type(screen.getByLabelText('名前・愛称'), '実生')
+    await user.type(screen.getByLabelText('樹齢'), '0')
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    expect(mockCreateBonsai).toHaveBeenCalledWith(expect.objectContaining({ estimatedAge: 0 }))
+  })
+
+  it('保存APIのエラー内容を画面に表示する', async () => {
+    mockCreateBonsai.mockRejectedValue(new Error('API error: 400 入手日が不正です'))
+    const user = userEvent.setup()
+    renderS2Form()
+    await user.type(screen.getByLabelText('名前・愛称'), '松')
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('入手日が不正です')
   })
 
   it('フォームフィールドが全件表示される', () => {

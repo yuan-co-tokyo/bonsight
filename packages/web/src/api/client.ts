@@ -34,7 +34,16 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${path}`)
+    let detail = ''
+    try {
+      const body: unknown = await res.json()
+      if (body && typeof body === 'object' && 'message' in body) {
+        const message = body.message
+        detail = typeof message === 'string' ? message : Array.isArray(message) ? message.filter((item): item is string => typeof item === 'string').join('、') : ''
+      }
+    } catch { /* JSON以外のエラーレスポンスでもHTTPステータスを表示する */ }
+    const guidance = res.status === 400 ? '入力内容を確認してください。' : res.status >= 500 ? 'サーバーでエラーが発生しました。時間をおいて再度お試しください。' : ''
+    throw new Error(`API error: ${res.status} ${path} ${guidance}${detail ? ` (${detail})` : ''}`.trim())
   }
 
   return res.json() as Promise<T>
