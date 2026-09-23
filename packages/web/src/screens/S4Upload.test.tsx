@@ -20,9 +20,10 @@ vi.mock('../api/mediaApi', () => ({
 
 function renderS4Upload(bonsaiId = 'b1') {
   return render(
-    <MemoryRouter initialEntries={[`/bonsai/${bonsaiId}/photo`]}>
+    <MemoryRouter initialEntries={[bonsaiId ? `/bonsai/${bonsaiId}/photo` : '/s4']}>
       <Routes>
         <Route path="/bonsai/:id/photo" element={<S4Upload />} />
+        <Route path="/s4" element={<S4Upload />} />
       </Routes>
     </MemoryRouter>
   )
@@ -33,6 +34,17 @@ describe('S4Upload', () => {
     mockNavigate.mockReset()
     mockGetPresignUrl.mockReset()
     mockCreateMedia.mockReset()
+  })
+
+  it('/s4 直アクセスでは盆栽への不完全なリンクを表示しない', () => {
+    renderS4Upload('')
+    expect(screen.queryByRole('link', { name: '盆栽' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'ホーム' })).toHaveAttribute('href', '/home')
+  })
+
+  it('盆栽IDがある場合は詳細へのパンくずリンクを表示する', () => {
+    renderS4Upload('b1')
+    expect(screen.getByRole('link', { name: '盆栽' })).toHaveAttribute('href', '/bonsai/b1')
   })
 
   it('「キャンセル」テキストボタンが存在する(G1)', () => {

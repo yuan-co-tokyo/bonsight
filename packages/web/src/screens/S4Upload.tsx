@@ -103,7 +103,7 @@ export default function S4Upload() {
   }
 
   return (
-    <BonsightShell screen="S4" title="写真を追加" breadcrumbs={[{ label: '盆栽', to: `/bonsai/${bonsaiId}` }, { label: '写真' }]}>
+    <BonsightShell screen="S4" title="写真を追加" breadcrumbs={bonsaiId ? [{ label: '盆栽', to: `/bonsai/${bonsaiId}` }, { label: '写真' }] : [{ label: '写真' }]}>
       {/* スクロールコンテンツ */}
       <div style={{ background: 'var(--color-bg)' }}>
         <div

@@ -112,7 +112,7 @@ export default function S6AiChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isTyping])
 
   const handleSend = async () => {
@@ -166,12 +166,14 @@ export default function S6AiChat() {
     return () => { viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update) }
   }, [])
 
+  const messageBottomSpace = `calc(100px + env(safe-area-inset-bottom) + ${keyboardInset}px)`
+
   return (
     <BonsightShell
       screen="S6"
       title="AI相談"
     >
-      <div className="s6-chat" style={{ display: 'flex', flexDirection: 'column', minHeight: '60dvh', paddingBottom: `calc(100px + env(safe-area-inset-bottom) + ${keyboardInset}px)` }}>
+      <div className="s6-chat" style={{ display: 'flex', flexDirection: 'column', minHeight: '60dvh', paddingBottom: messageBottomSpace }}>
         {/* 文脈チップ行 */}
         <div
           className="s6-context-bar"
@@ -226,7 +228,7 @@ export default function S6AiChat() {
               : <UserBubble key={msg.id} msg={msg} />
           )}
           {isTyping && <TypingIndicator />}
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} className="s6-messages-end" style={{ scrollMarginBottom: messageBottomSpace }} />
         </div>
 
         {/* 入力バー */}

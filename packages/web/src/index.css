@@ -19,9 +19,10 @@ body {
   flex-direction: column;
 }
 
-button, a, [role='button'], select, input:not([type='checkbox']):not([type='file']) { min-height: 44px; }
+button, [role='button'], select, input:not([type='checkbox']):not([type='file']) { min-height: 44px; }
 button, [role='button'] { min-width: 44px; }
-a { display: inline-flex; align-items: center; color: var(--color-accent); }
+.brand-link, .site-menu a, .breadcrumbs a { min-height: 44px; display: inline-flex; align-items: center; }
+.breadcrumbs a { color: var(--color-accent); }
 button:focus-visible, a:focus-visible, [role='button']:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; box-shadow: var(--focus-ring); }
 @media (hover: hover) { button:not(:disabled):hover, a:hover, [role='button']:hover { filter: brightness(.92); } }
 .bonsight-shell { width: 100%; min-height: 100dvh; }

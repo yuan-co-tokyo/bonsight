@@ -45,11 +45,16 @@ describe('S6AiChat', () => {
     try {
       const { container, unmount } = renderS6()
       const bar = container.querySelector('.s6-input-bar')!
+      const end = container.querySelector<HTMLElement>('.s6-messages-end')!
+      const initialMargin = end.style.scrollMarginBottom
+      expect(initialMargin).toContain('env(safe-area-inset-bottom)')
       expect(bar).toHaveStyle({ bottom: '0px' })
       act(() => { viewport.height = window.innerHeight - 300; viewport.dispatchEvent(new Event('resize')) })
       expect(bar).toHaveStyle({ bottom: '300px' })
+      expect(end).toHaveStyle({ scrollMarginBottom: 'calc(100px + env(safe-area-inset-bottom) + 300px)' })
       act(() => { viewport.height = window.innerHeight; viewport.dispatchEvent(new Event('resize')) })
       expect(bar).toHaveStyle({ bottom: '0px' })
+      expect(end.style.scrollMarginBottom).toBe(initialMargin)
       unmount()
       expect(remove).toHaveBeenCalledWith('resize', expect.any(Function))
       expect(remove).toHaveBeenCalledWith('scroll', expect.any(Function))
