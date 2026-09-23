@@ -58,11 +58,33 @@ export interface CreateMediaDto {
   type?: MediaType;
 }
 
+export interface HealthFlag {
+  key: string;
+  label: string;
+  level: 'good' | 'warning' | 'danger';
+}
+
+export interface DiagnosisComparison {
+  status: 'improved' | 'unchanged' | 'worsened' | 'mixed' | 'not_comparable';
+  summary: string;
+  details?: { aspect: string; change: string; note: string }[];
+}
+
+export interface DiagnosisData {
+  species: string;
+  health: HealthFlag[];
+  styling: string;
+  seasonal: string;
+  confidence: number;
+  disclaimer: string;
+  comparison?: DiagnosisComparison;
+}
+
 export interface AIAdviceDto {
   id: string;
   bonsaiId: string;
   mediaId?: string;
-  diagnosis: Record<string, unknown>;
+  diagnosis: DiagnosisData;
   confidence?: number;
   createdAt: string;
 }

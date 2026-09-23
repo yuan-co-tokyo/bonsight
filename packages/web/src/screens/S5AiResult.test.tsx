@@ -3,6 +3,8 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S5AiResult from './S5AiResult'
+import { UserContext } from '../contexts/UserContext'
+import type { UserDto } from 'shared'
 import * as adviceApi from '../api/adviceApi'
 
 vi.mock('../api/adviceApi', () => ({
@@ -38,13 +40,15 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
-function renderS5(state?: object) {
+function renderS5(state?: object, user: UserDto | null = null) {
   return render(
+    <UserContext.Provider value={{ user, refreshUser: vi.fn() }}>
     <MemoryRouter initialEntries={[{ pathname: '/bonsai/b1/ai', state: state ?? {} }]}>
       <Routes>
         <Route path="/bonsai/:id/ai" element={<S5AiResult />} />
       </Routes>
     </MemoryRouter>
+    </UserContext.Provider>
   )
 }
 
@@ -64,6 +68,33 @@ describe('S5AiResult', () => {
   beforeEach(() => {
     mockCreateAdvice.mockReset()
     mockNavigate.mockReset()
+  })
+
+  it('前回比較の状態・要約・詳細を表示する', async () => {
+    const advice = { ...mockResult, diagnosis: { ...mockResult.diagnosis, comparison: { status: 'improved', summary: '葉色が改善しています', details: [{ aspect: '葉色', change: '緑が増えた', note: '写真で見える範囲' }] } } }
+    renderS5({ advice })
+    expect(await screen.findByRole('region', { name: '前回の診断との比較' })).toHaveTextContent('改善')
+    expect(screen.getByText('葉色が改善しています')).toBeInTheDocument()
+    expect(screen.getByText('写真で見える範囲')).toBeInTheDocument()
+  })
+
+  it('比較がない旧データは比較欄なしで表示する', async () => {
+    renderS5({ advice: mockResult })
+    await screen.findByRole('button', { name: 'この診断をカルテに保存' })
+    expect(screen.queryByRole('region', { name: '前回の診断との比較' })).not.toBeInTheDocument()
+  })
+
+  it('not_comparable は比較が難しいと表示し、detailsなしでも表示できる', async () => {
+    renderS5({ advice: { ...mockResult, diagnosis: { ...mockResult.diagnosis, comparison: { status: 'not_comparable', summary: '撮影角度が異なります' } } } })
+    expect(await screen.findByText('比較が難しい')).toBeInTheDocument()
+  })
+
+  it.each([undefined, '東京都'])('地域が未設定の場合だけ設定への導線を出す: %s', async (region) => {
+    renderS5({ advice: mockResult }, { id: 'u1', cognitoSub: 'sub1', displayName: '盆栽太郎', region })
+    await screen.findByRole('button', { name: 'この診断をカルテに保存' })
+    const link = screen.queryByRole('link', { name: '設定で地域を登録すると季節アドバイスの精度が上がります' })
+    if (region) expect(link).not.toBeInTheDocument()
+    else expect(link).toHaveAttribute('href', '/s8')
   })
 
   it('loading 状態: SparkleIcon + AI診断中 が表示される', () => {
