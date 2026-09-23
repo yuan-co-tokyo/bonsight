@@ -515,7 +515,7 @@ export default function S3Detail() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '0 16px 16px' }}>
           <Chip icon={<CalendarIcon />} label={displayAge(bonsai)} />
           <Chip icon={<TreeIcon />} label={bonsai.style ?? '樹形未設定'} />
-          <Chip icon={<ShoppingBagIcon />} label={bonsai.acquiredAt ?? '入手日未設定'} />
+          <Chip icon={<ShoppingBagIcon />} label={bonsai.acquiredAt?.slice(0, 10) ?? '入手日未設定'} />
         </div>
 
         {/* アクションボタン */}

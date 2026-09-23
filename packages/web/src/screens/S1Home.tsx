@@ -56,7 +56,7 @@ function toCardModel(bonsai: BonsaiDto | BonsaiStub): BonsaiCardModel {
     speciesLabel: bonsai.species ?? '樹種未設定',
     ageLabel: bonsai.estimatedAge !== undefined ? `約${bonsai.estimatedAge}年` : '樹齢未設定',
     styleLabel: bonsai.style ?? '樹形未設定',
-    acquiredLabel: bonsai.acquiredAt ?? '入手日未設定',
+    acquiredLabel: bonsai.acquiredAt?.slice(0, 10) ?? '入手日未設定',
     updatedAt: bonsai.updatedAt,
     coverImageUrl: bonsai.coverImageUrl ?? undefined,
   }

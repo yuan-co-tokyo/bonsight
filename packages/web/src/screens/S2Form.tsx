@@ -321,7 +321,7 @@ export default function S2Form() {
           />
           <span>年</span>
           </div>
-          {ageError && <p id="tree-age-error" role="alert" style={{ color: 'var(--status-danger-text)' }}>樹齢は0〜2147483647の整数で入力してください。不明なら空欄にしてください。</p>}
+          {ageError && <p id="tree-age-error" role="alert" style={{ color: 'var(--status-danger-text)' }}>樹齢は0以上の整数（年）で入力してください。不明なら空欄にしてください。</p>}
         </div>
 
         {/* 樹形 → select (S2-M2) */}
