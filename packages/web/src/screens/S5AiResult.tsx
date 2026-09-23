@@ -98,6 +98,7 @@ export default function S5AiResult() {
 
   useEffect(() => {
     if (!bonsaiId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Route changes synchronize the diagnosis request state, including missing IDs and supplied advice.
       setErrorMsg('盆栽IDが見つかりません')
       setScreenState('error')
       return
@@ -127,10 +128,8 @@ export default function S5AiResult() {
   return (
     <BonsightShell
       screen="S5"
-      showTabBar={false}
       title="AI診断"
-      onBack={() => navigate(`/bonsai/${bonsaiId}`, { replace: true })}
-      contextAction={{ label: '✦', onClick: () => {} }}
+      breadcrumbs={[{ label: '盆栽', to: `/bonsai/${bonsaiId}` }, { label: 'AI診断' }]}
     >
       {screenState === 'loading' && (
         <div
@@ -268,6 +267,15 @@ export default function S5AiResult() {
             </p>
           </div>
 
+          {/* 保存ボタン */}
+          <Button
+            variant="primary"
+            onClick={() => navigate(`/bonsai/${bonsaiId}`, { replace: true })}
+            style={{ width: 'calc(100% - 32px)', margin: '8px 16px 24px' }}
+          >
+            この診断をカルテに保存
+          </Button>
+
           {/* クイック返信チップ */}
           <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px', flexWrap: 'wrap' }}>
             {[
@@ -300,14 +308,6 @@ export default function S5AiResult() {
             ))}
           </div>
 
-          {/* 保存ボタン */}
-          <Button
-            variant="primary"
-            onClick={() => navigate(`/bonsai/${bonsaiId}`, { replace: true })}
-            style={{ width: 'calc(100% - 32px)', margin: '8px 16px 24px' }}
-          >
-            この診断をカルテに保存
-          </Button>
         </>
       )}
     </BonsightShell>

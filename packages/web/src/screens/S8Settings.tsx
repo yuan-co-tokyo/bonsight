@@ -137,7 +137,7 @@ export default function S8Settings() {
   const initials = user ? user.displayName.charAt(0) : '?'
 
   return (
-    <BonsightShell screen="S8" showTabBar activeTab="settings">
+    <BonsightShell screen="S8">
       <div style={{ padding: '0 16px' }}>
         <h1
           style={{
@@ -284,7 +284,7 @@ export default function S8Settings() {
                   {saveError && (
                     <div style={{ fontSize: 12, color: '#C0392B', marginBottom: 10 }}>{saveError}</div>
                   )}
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <button
                       onClick={handleSave}
                       disabled={saving || editDisplayName.trim() === ''}
@@ -308,7 +308,8 @@ export default function S8Settings() {
                       style={{
                         flex: 1,
                         padding: '8px 0',
-                        background: '#F0EDE8',
+                        background: 'transparent',
+                        textDecoration: 'underline',
                         color: 'var(--color-ink)',
                         border: 'none',
                         borderRadius: 8,

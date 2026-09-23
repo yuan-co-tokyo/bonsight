@@ -358,6 +358,7 @@ export default function S3Detail() {
 
   useEffect(() => {
     if (!id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- A route change must reset the existing detail request state, including an absent ID.
       setError(true)
       setLoading(false)
       return
@@ -437,7 +438,7 @@ export default function S3Detail() {
 
   if (loading) {
     return (
-      <BonsightShell screen="S3" showTabBar={false} title="読み込み中" onBack={() => navigate(-1)}>
+      <BonsightShell screen="S3" title="読み込み中">
         <LoadingState />
       </BonsightShell>
     )
@@ -445,7 +446,7 @@ export default function S3Detail() {
 
   if (error || bonsai === null) {
     return (
-      <BonsightShell screen="S3" showTabBar={false} title="詳細" onBack={() => navigate(-1)}>
+      <BonsightShell screen="S3" title="詳細">
         <NotFoundState />
       </BonsightShell>
     )
@@ -481,12 +482,10 @@ export default function S3Detail() {
   return (
     <BonsightShell
       screen="S3"
-      showTabBar={false}
-      title={displayName(bonsai)}
-      onBack={() => navigate(-1)}
-      contextAction={{ label: '編集', onClick: () => navigate(`/bonsai/${bonsai.id}/edit`) }}
+      breadcrumbs={[{ label: displayName(bonsai) }]}
     >
       <article className="s3-detail">
+        <div style={{ padding: '0 16px 12px' }}><button className="text-action" onClick={() => navigate(`/bonsai/${bonsai.id}/edit`)}>編集</button></div>
         {/* hero */}
         {bonsai.coverImageUrl ? (
           <img
@@ -520,7 +519,7 @@ export default function S3Detail() {
         </div>
 
         {/* アクションボタン */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, padding: '0 16px 16px' }}>
           <Button variant="primary" onClick={() => navigate(`/bonsai/${bonsai.id}/photo`)}>
             <CameraIcon /> 写真を追加
           </Button>
