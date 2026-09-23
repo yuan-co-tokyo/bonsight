@@ -66,6 +66,20 @@ describe('S7Viewer', () => {
     expect(img).toHaveAttribute('src', mediaList[0].cloudfrontUrl)
   })
 
+  it('左右スワイプで切り替え、縦スワイプでは切り替えない', () => {
+    renderS7()
+    const area = screen.getByRole('img').parentElement!
+    fireEvent.touchStart(area, { touches: [{ clientX: 200, clientY: 100 }] })
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: 100, clientY: 105 }] })
+    expect(screen.getByRole('img')).toHaveAttribute('src', mediaList[1].cloudfrontUrl)
+    fireEvent.touchStart(area, { touches: [{ clientX: 100, clientY: 100 }] })
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: 200, clientY: 105 }] })
+    expect(screen.getByRole('img')).toHaveAttribute('src', mediaList[0].cloudfrontUrl)
+    fireEvent.touchStart(area, { touches: [{ clientX: 200, clientY: 100 }] })
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: 100, clientY: 300 }] })
+    expect(screen.getByRole('img')).toHaveAttribute('src', mediaList[0].cloudfrontUrl)
+  })
+
   it('キャプションが表示される', () => {
     renderS7({ initialIndex: 0 })
     expect(screen.getByText('冬の様子')).toBeInTheDocument()

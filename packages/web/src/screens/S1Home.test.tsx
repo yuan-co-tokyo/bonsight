@@ -60,7 +60,7 @@ describe('S1Home', () => {
 
   it('ヘッダーにタイトルと件数が横並びで表示される(S1-F1)', () => {
     renderS1Home({ bonsaiList: STUB_BONSAI_LIST })
-    const title = screen.getByRole('heading', { name: 'マイ盆栽', level: 1 })
+    const title = screen.getByRole('heading', { name: /マイ盆栽/, level: 1 })
     expect(title).toBeInTheDocument()
     const header = title.closest('.s1-header')
     expect(header).not.toBeNull()

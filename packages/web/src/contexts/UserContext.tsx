@@ -7,6 +7,7 @@ interface UserContextValue {
   refreshUser: () => void
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- Existing public context API is shared with its provider.
 export const UserContext = createContext<UserContextValue>({
   user: null,
   refreshUser: () => {},
@@ -23,6 +24,7 @@ export function UserProvider({ authed, children }: { authed: boolean; children: 
     if (authed) {
       fetchUser()
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the authenticated profile when Amplify signals sign-out.
       setUser(null)
     }
   }, [authed, fetchUser])
@@ -34,6 +36,7 @@ export function UserProvider({ authed, children }: { authed: boolean; children: 
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- Existing public hook shares the provider module.
 export function useUser() {
   return useContext(UserContext)
 }

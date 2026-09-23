@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
 import { sendChat, sendChatGeneral } from '../api/adviceApi'
 
@@ -99,7 +99,6 @@ function TypingIndicator() {
 }
 
 export default function S6AiChat() {
-  const navigate = useNavigate()
   const location = useLocation()
   const { bonsaiId, bonsaiName, species } = (location.state ?? {}) as {
     bonsaiId?: string
@@ -156,18 +155,23 @@ export default function S6AiChat() {
     }
   }
 
+  const [keyboardInset, setKeyboardInset] = useState(0)
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+    const update = () => setKeyboardInset(Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop))
+    update()
+    viewport.addEventListener('resize', update)
+    viewport.addEventListener('scroll', update)
+    return () => { viewport.removeEventListener('resize', update); viewport.removeEventListener('scroll', update) }
+  }, [])
+
   return (
     <BonsightShell
       screen="S6"
-      showTabBar={true}
-      activeTab="ai"
-      leftAction="back"
-      onBack={() => navigate(-1)}
       title="AI相談"
-      titleIcon="sparkle"
-      showAvatar={false}
     >
-      <div className="s6-chat" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="s6-chat" style={{ display: 'flex', flexDirection: 'column', minHeight: '60dvh', paddingBottom: `calc(100px + env(safe-area-inset-bottom) + ${keyboardInset}px)` }}>
         {/* 文脈チップ行 */}
         <div
           className="s6-context-bar"
@@ -210,7 +214,6 @@ export default function S6AiChat() {
           className="s6-messages"
           style={{
             flex: 1,
-            overflowY: 'auto',
             padding: '16px',
             display: 'flex',
             flexDirection: 'column',
@@ -232,7 +235,8 @@ export default function S6AiChat() {
           style={{
             background: '#fff',
             borderTop: '1px solid #EDEBE6',
-            padding: '10px 12px',
+            position: 'fixed', bottom: keyboardInset, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 640, zIndex: 50,
+            padding: '10px 12px calc(10px + env(safe-area-inset-bottom))',
             display: 'flex',
             alignItems: 'center',
             gap: 10,

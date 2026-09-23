@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import BonsightShell from '../components/BonsightShell'
 import AIBadge from '../components/AIBadge'
 import Button from '../components/Button'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
@@ -102,58 +103,12 @@ export default function S4Upload() {
   }
 
   return (
-    <div
-      data-screen="S4"
-      style={{
-        height: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-        maxWidth: 430,
-        margin: '0 auto',
-        width: '100%',
-        background: 'var(--color-bg)',
-      }}
-    >
-      {/* カスタムヘッダー: キャンセル + 写真を追加 + spacer */}
-      <div
-        style={{
-          background: '#fff',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '56px 16px 12px',
-          flexShrink: 0,
-        }}
-      >
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            fontSize: 13.5,
-            color: '#777067',
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            fontFamily: 'var(--font-family)',
-            minWidth: 60,
-            textAlign: 'left',
-          }}
-        >
-          キャンセル
-        </button>
-        <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--color-ink)' }}>
-          写真を追加
-        </span>
-        <div style={{ width: 60 }} />
-      </div>
-
+    <BonsightShell screen="S4" title="写真を追加" breadcrumbs={[{ label: '盆栽', to: `/bonsai/${bonsaiId}` }, { label: '写真' }]}>
       {/* スクロールコンテンツ */}
-      <div style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)' }}>
+      <div style={{ background: 'var(--color-bg)' }}>
         <div
           style={{
             padding: '20px 16px',
-            paddingBottom: 100,
             display: 'flex',
             flexDirection: 'column',
             gap: 20,
@@ -161,6 +116,8 @@ export default function S4Upload() {
         >
           {/* 写真選択エリア */}
           <div
+            role="button" tabIndex={0} aria-label="写真を選択"
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInputRef.current?.click() } }}
             onClick={() => fileInputRef.current?.click()}
             style={{
               width: '100%',
@@ -240,17 +197,18 @@ export default function S4Upload() {
                 アップロード後すぐAI診断にかける
               </p>
             </div>
-            <label style={{ position: 'relative', display: 'inline-block', width: 38, height: 22, flexShrink: 0, marginLeft: 12 }}>
+            <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 44, flexShrink: 0, marginLeft: 12 }}>
               <input
                 type="checkbox"
+                aria-label="AI自動診断"
                 checked={autoDiagnose}
                 onChange={(e) => setAutoDiagnose(e.target.checked)}
-                style={{ opacity: 0, width: 0, height: 0 }}
+                style={{ position: 'absolute', inset: 0, width: 44, height: 44, margin: 0, opacity: 0, zIndex: 1, cursor: 'pointer' }}
               />
               <span
                 style={{
                   position: 'absolute',
-                  inset: 0,
+                  left: 3, right: 3, top: 11, height: 22,
                   borderRadius: 11,
                   background: autoDiagnose ? '#5C7A52' : '#D6D3CB',
                   transition: 'background 0.2s',
@@ -260,8 +218,8 @@ export default function S4Upload() {
               <span
                 style={{
                   position: 'absolute',
-                  top: 2,
-                  left: autoDiagnose ? 18 : 2,
+                  top: 13,
+                  left: autoDiagnose ? 21 : 5,
                   width: 18,
                   height: 18,
                   borderRadius: '50%',
@@ -310,10 +268,6 @@ export default function S4Upload() {
       {/* 固定下部バー */}
       <div
         style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
           padding: '12px 16px calc(12px + env(safe-area-inset-bottom))',
           background: 'var(--color-bg)',
           borderTop: '1px solid var(--color-border)',
@@ -328,6 +282,7 @@ export default function S4Upload() {
           {uploading ? 'アップロード中...' : 'アップロード'}
         </Button>
       </div>
-    </div>
+      <button className="text-action form-cancel" onClick={() => navigate(-1)}>キャンセル</button>
+    </BonsightShell>
   )
 }

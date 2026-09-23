@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import type { MediaDtoEx } from '../api/mediaApi'
 import { deleteMedia } from '../api/mediaApi'
@@ -30,6 +30,7 @@ export default function S7Viewer() {
   const [currentIndex, setCurrentIndex] = useState(state?.initialIndex ?? 0)
   const [showDeletePhotoDialog, setShowDeletePhotoDialog] = useState(false)
 
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
   const currentMedia = mediaList[currentIndex]
 
   const goPrev = () => { if (currentIndex > 0) setCurrentIndex(i => i - 1) }
@@ -44,8 +45,8 @@ export default function S7Viewer() {
 
   if (!currentMedia) {
     return (
-      <div style={{ background: '#1A1A17', color: '#EDEBE6', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p>写真が見つかりません</p>
+      <div style={{ background: '#1A1A17', color: '#EDEBE6', minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p>写真が見つかりません</p><button className="text-action" onClick={() => navigate(-1)} aria-label="閉じる">✕</button>
       </div>
     )
   }
@@ -59,25 +60,25 @@ export default function S7Viewer() {
       className="s7-viewer"
       style={{
         background: '#1A1A17', color: '#EDEBE6',
-        height: '100dvh',
+        minHeight: '100dvh',
         display: 'flex', flexDirection: 'column',
-        position: 'relative', overflow: 'hidden',
+        position: 'relative',
       }}
     >
       {/* トップバー */}
       <div
         className="s7-topbar"
         style={{
-          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+          position: 'relative', zIndex: 10,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '56px 16px 16px',
+          padding: '12px 16px',
           background: 'linear-gradient(rgba(0,0,0,.5), transparent)',
         }}
       >
         <button
           onClick={() => navigate(-1)}
           style={{
-            width: 40, height: 40, borderRadius: 20,
+            order: 2, width: 44, height: 44, borderRadius: 20,
             background: 'rgba(0,0,0,0.4)', border: 'none',
             cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -94,7 +95,7 @@ export default function S7Viewer() {
         <button
           onClick={() => setShowDeletePhotoDialog(true)}
           style={{
-            width: 40, height: 40, borderRadius: 20,
+            width: 44, height: 44, borderRadius: 20,
             background: 'rgba(0,0,0,0.4)', border: 'none',
             cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -111,7 +112,11 @@ export default function S7Viewer() {
       </div>
 
       {/* メイン写真エリア */}
-      <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        onTouchStart={(event) => { const touch = event.touches[0]; touchStart.current = event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY } : null }}
+        onTouchCancel={() => { touchStart.current = null }}
+        onTouchEnd={(event) => { const start = touchStart.current; touchStart.current = null; if (!start) return; const touch = event.changedTouches[0]; const dx = touch.clientX - start.x; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(touch.clientY - start.y)) { if (dx > 0) goPrev(); else goNext() } }}
+        style={{ minHeight: '55dvh', flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <img
           src={currentMedia.cloudfrontUrl}
           alt={dateLabel}
@@ -129,7 +134,7 @@ export default function S7Viewer() {
             aria-label="前の写真"
             style={{
               position: 'absolute', left: 12,
-              width: 40, height: 40, borderRadius: 20,
+              width: 44, height: 44, borderRadius: 20,
               background: 'rgba(0,0,0,0.4)', border: 'none',
               cursor: 'pointer',
               zIndex: 5,
@@ -147,7 +152,7 @@ export default function S7Viewer() {
             aria-label="次の写真"
             style={{
               position: 'absolute', right: 12,
-              width: 40, height: 40, borderRadius: 20,
+              width: 44, height: 44, borderRadius: 20,
               background: 'rgba(0,0,0,0.4)', border: 'none',
               cursor: 'pointer',
               zIndex: 5,
@@ -165,7 +170,7 @@ export default function S7Viewer() {
       <div
         className="s7-overlay"
         style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
+          position: 'relative',
           padding: '32px 20px 40px',
           background: 'linear-gradient(transparent, rgba(0,0,0,.6))',
           zIndex: 5,

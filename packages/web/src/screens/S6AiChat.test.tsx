@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import S6AiChat from './S6AiChat'
@@ -36,6 +36,24 @@ describe('S6AiChat', () => {
     mockSendChatGeneral.mockReset()
     mockNavigate.mockReset()
     window.HTMLElement.prototype.scrollIntoView = vi.fn()
+  })
+
+  it('visualViewport の縮小と復帰に入力欄が追従し、購読を解除する', () => {
+    const viewport = Object.assign(new EventTarget(), { height: window.innerHeight, offsetTop: 0 })
+    const remove = vi.spyOn(viewport, 'removeEventListener')
+    vi.stubGlobal('visualViewport', viewport)
+    try {
+      const { container, unmount } = renderS6()
+      const bar = container.querySelector('.s6-input-bar')!
+      expect(bar).toHaveStyle({ bottom: '0px' })
+      act(() => { viewport.height = window.innerHeight - 300; viewport.dispatchEvent(new Event('resize')) })
+      expect(bar).toHaveStyle({ bottom: '300px' })
+      act(() => { viewport.height = window.innerHeight; viewport.dispatchEvent(new Event('resize')) })
+      expect(bar).toHaveStyle({ bottom: '0px' })
+      unmount()
+      expect(remove).toHaveBeenCalledWith('resize', expect.any(Function))
+      expect(remove).toHaveBeenCalledWith('scroll', expect.any(Function))
+    } finally { vi.unstubAllGlobals() }
   })
 
   it('トップバーに「AI相談」タイトルが表示される', () => {

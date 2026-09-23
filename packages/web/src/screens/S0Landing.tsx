@@ -65,7 +65,7 @@ export default function S0Landing() {
         flexDirection: 'column',
         alignItems: 'center',
         padding: '0 20px',
-        maxWidth: 430,
+        maxWidth: 640,
         margin: '0 auto',
         width: '100%',
         boxSizing: 'border-box',

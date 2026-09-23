@@ -203,6 +203,7 @@ export default function S1Home({ bonsaiList }: { bonsaiList?: BonsaiStub[] }) {
 
   useEffect(() => {
     if (bonsaiList === undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- The same loader resets pending state for both source changes and explicit retries.
       void loadBonsais()
     }
   }, [bonsaiList])
@@ -210,16 +211,14 @@ export default function S1Home({ bonsaiList }: { bonsaiList?: BonsaiStub[] }) {
   const displayBonsais = (bonsaiList ?? bonsais).map(toCardModel)
 
   return (
-    <BonsightShell screen="S1" showTabBar activeTab="home">
+    <BonsightShell screen="S1">
       <section className="s1-home">
         {/* S1-F1: タイトルと件数の横並び */}
         <div className="s1-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 16px 12px' }}>
           <h1 style={{ fontSize: 21, fontWeight: 700, color: 'var(--color-ink)', margin: 0 }}>
-            マイ盆栽
+            マイ盆栽（<span>{displayBonsais.length}本</span>）
           </h1>
-          <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-            {displayBonsais.length}本
-          </span>
+          <button className="primary-action" onClick={() => navigate('/bonsai/new')}>+ 登録</button>
         </div>
         {loading ? (
           <LoadingState />

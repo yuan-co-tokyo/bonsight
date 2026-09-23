@@ -133,12 +133,11 @@ describe('S5AiResult', () => {
     expect(mockNavigate).not.toHaveBeenCalledWith(-1)
   })
 
-  it('onBack(戻るボタン)押下で navigate が replace:true 付きでS3(/bonsai/b1)に呼ばれる', async () => {
+  it('パンくずに盆栽詳細へのリンクがある', async () => {
     mockCreateAdvice.mockResolvedValue(mockResult)
     renderS5()
-    fireEvent.click(screen.getByRole('button', { name: '戻る' }))
-    expect(mockNavigate).toHaveBeenCalledWith('/bonsai/b1', { replace: true })
-    expect(mockNavigate).not.toHaveBeenCalledWith(-1)
+    expect(screen.getByRole('link', { name: '盆栽' })).toHaveAttribute('href', '/bonsai/b1')
+    await screen.findByRole('button', { name: 'この診断をカルテに保存' })
   })
 
   it('low_confidence: confidence < 0.5 のとき低信頼度注記が表示される', async () => {

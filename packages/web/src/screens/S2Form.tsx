@@ -159,11 +159,7 @@ export default function S2Form() {
   return (
     <BonsightShell
       screen="S2"
-      showTabBar={false}
       title={isEditMode ? '盆栽を編集' : '盆栽を登録'}
-      leftAction="cancel"
-      onBack={() => navigate(-1)}
-      contextAction={{ label: uploading ? 'アップロード中...' : saving ? '保存中...' : '保存', onClick: handleSave, disabled: saving || loading || uploading }}
     >
       <div
         style={{
@@ -350,6 +346,8 @@ export default function S2Form() {
             style={textareaStyle}
           />
         </div>
+        <button className="primary-action" disabled={saving || loading || uploading} onClick={handleSave}>{uploading ? 'アップロード中...' : saving ? '保存中...' : '保存'}</button>
+        <button className="text-action" onClick={() => navigate(-1)}>キャンセル</button>
       </div>
     </BonsightShell>
   )
