@@ -129,7 +129,13 @@ export class AdviceService {
         take: 10,
       }),
       this.prisma.aIAdvice.findFirst({
-        where: { bonsaiId },
+        where: {
+          bonsaiId,
+          mediaId: {
+            not: null,
+            ...(resolvedMediaId ? { notIn: [resolvedMediaId] } : {}),
+          },
+        },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
@@ -141,18 +147,25 @@ export class AdviceService {
         });
         if (!previousMedia || previousMedia.bonsaiId !== bonsaiId)
           throw new Error('Previous photo unavailable');
-        const previousBytes = await this.getS3Bytes(previousMedia.s3Key);
-        previous = {
-          photo: {
-            s3Key: previousMedia.s3Key,
-            bytes: previousBytes,
-            takenAt: previousMedia.takenAt,
-          },
-          diagnosis: latestAdvice.diagnosis,
-        };
-      } catch {
+        if (
+          !takenAt ||
+          !previousMedia.takenAt ||
+          previousMedia.takenAt <= takenAt
+        ) {
+          const previousBytes = await this.getS3Bytes(previousMedia.s3Key);
+          previous = {
+            photo: {
+              s3Key: previousMedia.s3Key,
+              bytes: previousBytes,
+              takenAt: previousMedia.takenAt,
+            },
+            diagnosis: latestAdvice.diagnosis,
+          };
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         Logger.warn(
-          'Previous diagnosis photo unavailable; continuing without comparison',
+          `Previous diagnosis photo unavailable (mediaId=${latestAdvice.mediaId}): ${message}; continuing without comparison`,
           'AdviceService',
         );
       }

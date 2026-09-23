@@ -174,7 +174,7 @@ describe('AdviceService.createAdvice', () => {
         '温帯',
         '2026-09-24',
         '2026-09-20',
-        'PRUNING',
+        '剪定',
         '枝を整理',
       ])
         expect(text).toContain(value);
@@ -195,7 +195,7 @@ describe('AdviceService.createAdvice', () => {
     }
   });
 
-  it('異なる前回写真と診断JSONをラベル付きで追加する', async () => {
+  it('再診断でも今回のmediaIdを除外して以前の別写真と比較する', async () => {
     prisma.aIAdvice.findFirst.mockResolvedValueOnce({
       mediaId: 'old',
       diagnosis: mockDiagnosis,
@@ -222,13 +222,66 @@ describe('AdviceService.createAdvice', () => {
     expect(content[5].image?.format).toBe('png');
     expect(content[3].text).toContain(JSON.stringify(mockDiagnosis));
     expect(prisma.aIAdvice.findFirst).toHaveBeenCalledWith({
-      where: { bonsaiId: 'b1' },
+      where: { bonsaiId: 'b1', mediaId: { not: null, notIn: ['m1'] } },
       orderBy: { createdAt: 'desc' },
     });
     expect(prisma.aIAdvice.create.mock.calls[0][0]).toHaveProperty(
       'data.diagnosis.comparison',
       comparison,
     );
+  });
+
+  it.each([
+    ['2026-08-01', '2026-09-01', 1],
+    ['2026-09-01', '2026-08-01', 2],
+    ['2026-09-01', '2026-09-01', 2],
+    [null, '2026-09-01', 2],
+    ['2026-09-01', null, 2],
+  ])(
+    '撮影日の前後関係を確認する: 今回=%s 前回=%s',
+    async (currentDate, previousDate, images) => {
+      prisma.media.findFirst.mockResolvedValueOnce({
+        id: 'm1',
+        bonsaiId: 'b1',
+        s3Key: 'current.jpg',
+        takenAt: currentDate ? new Date(currentDate) : null,
+      });
+      prisma.aIAdvice.findFirst.mockResolvedValueOnce({
+        mediaId: 'old',
+        diagnosis: mockDiagnosis,
+      });
+      prisma.media.findUnique.mockResolvedValueOnce({
+        id: 'old',
+        bonsaiId: 'b1',
+        s3Key: 'old.jpg',
+        takenAt: previousDate ? new Date(previousDate) : null,
+      });
+      await service.createAdvice('b1', {}, 'sub1');
+      expect(
+        bedrock.converse.mock.calls[0][0].messages[0].content.filter(
+          (block) => block.image,
+        ),
+      ).toHaveLength(images);
+      const client = (S3Client as jest.Mock).mock.results[0].value as {
+        send: jest.Mock<Promise<unknown>, [unknown]>;
+      };
+      expect(client.send).toHaveBeenCalledTimes(images);
+    },
+  );
+
+  it('表紙画像は前回検索で非nullのmediaIdだけを指定する', async () => {
+    prisma.bonsai.findUnique.mockResolvedValueOnce({
+      id: 'b1',
+      owner: 'sub1',
+      name: 'T',
+      coverImageKey: 'cover.jpg',
+    });
+    prisma.media.findFirst.mockResolvedValueOnce(null);
+    await service.createAdvice('b1', {}, 'sub1');
+    expect(prisma.aIAdvice.findFirst).toHaveBeenCalledWith({
+      where: { bonsaiId: 'b1', mediaId: { not: null } },
+      orderBy: { createdAt: 'desc' },
+    });
   });
 
   it.each([null, { mediaId: null }, { mediaId: 'm1' }])(
@@ -266,7 +319,14 @@ describe('AdviceService.createAdvice', () => {
       .mockRejectedValueOnce(new Error('S3 unavailable'));
     try {
       await service.createAdvice('b1', {}, 'sub1');
-      expect(warn).toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('mediaId=old'),
+        'AdviceService',
+      );
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('S3 unavailable'),
+        'AdviceService',
+      );
       expect(
         bedrock.converse.mock.calls[0][0].messages[0].content.filter(
           (block) => block.image,

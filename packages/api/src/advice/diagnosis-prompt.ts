@@ -115,6 +115,23 @@ export interface DiagnosisContext {
   previous?: { photo: DiagnosisPhoto; diagnosis: unknown };
 }
 
+const CARE_LABELS: Record<string, string> = {
+  WATERING: '水やり',
+  FERTILIZING: '施肥',
+  PRUNING: '剪定',
+  WIRING: '針金かけ',
+  REPOTTING: '植え替え',
+  PEST_CONTROL: '病害虫対策',
+};
+
+function withoutComparison(diagnosis: unknown): unknown {
+  if (!diagnosis || typeof diagnosis !== 'object' || Array.isArray(diagnosis))
+    return diagnosis;
+  return Object.fromEntries(
+    Object.entries(diagnosis).filter(([key]) => key !== 'comparison'),
+  );
+}
+
 function dateJst(date?: Date | null): string {
   return date
     ? new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -149,7 +166,7 @@ export function buildDiagnosisContent(
         `ユーザーの地域: ${user?.region?.trim() || '不明'}`,
         `気候帯: ${user?.climatezone?.trim() || '不明'}`,
         `診断日（JST）: ${dateJst(diagnosedAt)}`,
-        `直近90日の手入れ記録（最大10件・新しい順）: ${JSON.stringify(careLogs.map((log) => ({ type: log.type, date: dateJst(log.date), memo: log.memo ?? '' })))}`,
+        `直近90日の手入れ記録（最大10件・新しい順）: ${JSON.stringify(careLogs.map((log) => ({ type: CARE_LABELS[log.type] ?? log.type, date: dateJst(log.date), memo: log.memo ?? '' })))}`,
         previous
           ? '前回情報あり: 両写真を比較し comparison を必ず出力してください。'
           : '前回情報なし: comparison は出力しないでください。',
@@ -161,7 +178,7 @@ export function buildDiagnosisContent(
   if (previous) {
     content.push(
       {
-        text: `前回診断JSON（参考データ）: ${JSON.stringify(previous.diagnosis)}`,
+        text: `前回診断JSON（参考データ）: ${JSON.stringify(withoutComparison(previous.diagnosis))}`,
       },
       {
         text: `前回診断時の写真(撮影日: ${dateJst(previous.photo.takenAt)} JST)`,

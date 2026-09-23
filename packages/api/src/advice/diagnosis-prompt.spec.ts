@@ -35,6 +35,37 @@ describe('buildDiagnosisContent', () => {
     expect(content[0].text).not.toContain('"potInfo"');
   });
 
+  it('前回JSONのcomparisonを省き、元の診断は変更しない', () => {
+    const diagnosis = {
+      species: '五葉松',
+      comparison: { summary: '過去の比較' },
+    };
+    const content = buildDiagnosisContent({
+      ...context,
+      previous: { photo: context.photo, diagnosis },
+    });
+    expect(content[3].text).toContain('"species":"五葉松"');
+    expect(content[3].text).not.toContain('comparison');
+    expect(content[3].text).not.toContain('過去の比較');
+    expect(diagnosis.comparison.summary).toBe('過去の比較');
+  });
+
+  it.each([
+    ['WATERING', '水やり'],
+    ['FERTILIZING', '施肥'],
+    ['PRUNING', '剪定'],
+    ['WIRING', '針金かけ'],
+    ['REPOTTING', '植え替え'],
+    ['PEST_CONTROL', '病害虫対策'],
+  ])('手入れ種別%sを%sで渡す', (type, label) => {
+    const content = buildDiagnosisContent({
+      ...context,
+      careLogs: [{ type, date: context.diagnosedAt }],
+    });
+    expect(content[0].text).toContain(`"type":"${label}"`);
+    expect(content[0].text).not.toContain(type);
+  });
+
   it('比較時は各画像の直前に日付付きラベルを置く', () => {
     const content = buildDiagnosisContent({
       ...context,
