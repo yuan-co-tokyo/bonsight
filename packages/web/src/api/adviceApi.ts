@@ -1,19 +1,7 @@
 import { apiFetch } from './client'
 
-export interface HealthFlag {
-  key: string
-  label: string
-  level: 'good' | 'warning' | 'danger'
-}
-
-export interface DiagnosisData {
-  species: string
-  health: HealthFlag[]
-  styling: string
-  seasonal: string
-  confidence: number
-  disclaimer: string
-}
+import type { DiagnosisData } from 'shared'
+export type { HealthFlag, DiagnosisData, DiagnosisComparison } from 'shared'
 
 export interface AdviceResult {
   id: string

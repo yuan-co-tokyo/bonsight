@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
+import { useUser } from '../contexts/UserContext'
 import Button from '../components/Button'
 import StatusBadge from '../components/StatusBadge'
 import { createAdvice } from '../api/adviceApi'
@@ -82,6 +83,7 @@ function AiBubble({ children }: { children: ReactNode }) {
 
 export default function S5AiResult() {
   const navigate = useNavigate()
+  const { user } = useUser()
   const { id: bonsaiId } = useParams<{ id: string }>()
   const location = useLocation()
   const { mediaId, mediaUrl, advice: initialAdvice } = (location.state ?? {}) as {
@@ -233,6 +235,22 @@ export default function S5AiResult() {
               <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>{result.diagnosis.seasonal}</p>
             </AiBubble>
           </div>
+
+          {result.diagnosis.comparison && (
+            <section aria-label="前回の診断との比較" style={{ margin: '12px 16px', padding: 16, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12 }}>
+              <h2 style={{ margin: '0 0 8px', fontSize: 15 }}>前回の診断との比較</h2>
+              <p style={{ fontWeight: 600 }}>{{ improved: '改善', unchanged: '大きな変化なし', worsened: '悪化', mixed: '改善と悪化の両方', not_comparable: '比較が難しい' }[result.diagnosis.comparison.status]}</p>
+              <p>{result.diagnosis.comparison.summary}</p>
+              {result.diagnosis.comparison.details?.map((detail, index) => (
+                <div key={index} style={{ marginTop: 8 }}><strong>{detail.aspect}</strong>：{detail.change}<p style={{ margin: '4px 0' }}>{detail.note}</p></div>
+              ))}
+            </section>
+          )}
+          {user && !user.region?.trim() && (
+            <p style={{ margin: '12px 16px', fontSize: 12, color: 'var(--color-text-secondary)' }}>
+              <Link to="/s8">設定で地域を登録すると季節アドバイスの精度が上がります</Link>
+            </p>
+          )}
 
           {/* 低信頼度注記 */}
           {result.diagnosis.confidence < 0.5 && (
