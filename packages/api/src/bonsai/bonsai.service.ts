@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBonsaiDto } from './dto/create-bonsai.dto';
 import { UpdateBonsaiDto } from './dto/update-bonsai.dto';
@@ -48,6 +53,10 @@ export class BonsaiService {
     const bonsai = await this.prisma.bonsai.create({
       data: {
         ...createBonsaiDto,
+        acquiredAt:
+          createBonsaiDto.acquiredAt == null
+            ? createBonsaiDto.acquiredAt
+            : new Date(createBonsaiDto.acquiredAt),
         owner,
       },
     });
@@ -68,7 +77,13 @@ export class BonsaiService {
     }
     const bonsai = await this.prisma.bonsai.update({
       where: { id },
-      data: updateBonsaiDto,
+      data: {
+        ...updateBonsaiDto,
+        acquiredAt:
+          updateBonsaiDto.acquiredAt == null
+            ? updateBonsaiDto.acquiredAt
+            : new Date(updateBonsaiDto.acquiredAt),
+      },
     });
     return this.toResponseDto(bonsai);
   }

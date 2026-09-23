@@ -54,6 +54,8 @@ export default function S2Form() {
     acquiredAt: '',
     note: '',
   })
+  const ageInputRef = useRef<HTMLInputElement>(null)
+  const [ageError, setAgeError] = useState(false)
   const [nameError, setNameError] = useState(false)
   const [loading, setLoading] = useState(isEditMode)
   const [saving, setSaving] = useState(false)
@@ -78,9 +80,9 @@ export default function S2Form() {
         setForm({
           name: bonsai.name,
           speciesJa: bonsai.species ?? '',
-          treeAge: bonsai.estimatedAge !== undefined ? String(bonsai.estimatedAge) : '',
+          treeAge: bonsai.estimatedAge != null ? String(bonsai.estimatedAge) : '',
           style: bonsai.style ?? '',
-          acquiredAt: bonsai.acquiredAt ?? '',
+          acquiredAt: bonsai.acquiredAt?.slice(0, 10) ?? '',
           note: bonsai.currentState ?? '',
         })
         setOrigin(bonsai.origin ?? '')
@@ -98,15 +100,16 @@ export default function S2Form() {
   }, [id])
 
   function buildDto(): CreateBonsaiDto {
-    const age = Number.parseInt(form.treeAge, 10)
+    const age = form.treeAge.trim() === '' ? null : Number(form.treeAge)
+    const empty = isEditMode ? null : undefined
     return {
       name: form.name.trim(),
-      species: form.speciesJa.trim() || undefined,
-      estimatedAge: Number.isNaN(age) ? undefined : age,
-      style: form.style || undefined,
-      acquiredAt: form.acquiredAt || undefined,
-      origin: origin || undefined,
-      currentState: form.note.trim() || undefined,
+      species: form.speciesJa.trim() || empty,
+      estimatedAge: age ?? empty,
+      style: form.style || empty,
+      acquiredAt: form.acquiredAt || empty,
+      origin: origin || empty,
+      currentState: form.note.trim() || empty,
     }
   }
 
@@ -115,6 +118,12 @@ export default function S2Form() {
       setNameError(true)
       return
     }
+    const age = Number(form.treeAge)
+    if (ageInputRef.current?.validity.badInput || (form.treeAge.trim() !== '' && (!Number.isInteger(age) || age < 0 || age > 2147483647))) {
+      setAgeError(true)
+      return
+    }
+    setAgeError(false)
     setSaving(true)
     setApiError(null)
     try {
@@ -145,6 +154,7 @@ export default function S2Form() {
 
   function handleChange(field: keyof FormState) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      if (field === 'treeAge') setAgeError(false)
       if (field === 'name') setNameError(false)
       setForm(prev => ({ ...prev, [field]: e.target.value }))
     }
@@ -273,7 +283,8 @@ export default function S2Form() {
             {(['実生', '挿し木', '購入'] as const).map(opt => (
               <button
                 key={opt}
-                onClick={() => setOrigin(opt)}
+                onClick={() => setOrigin(origin === opt ? '' : opt)}
+                aria-pressed={origin === opt}
                 style={{
                   flex: 1,
                   height: 38,
@@ -296,14 +307,21 @@ export default function S2Form() {
         {/* 樹齢 */}
         <div>
           <label style={labelStyle}>樹齢</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
-            type="text"
-            placeholder="例: 約25年"
+            ref={ageInputRef}
+            type="number" min="0" step="1" inputMode="numeric"
+            aria-invalid={ageError}
+            aria-describedby={ageError ? 'tree-age-error' : undefined}
+            placeholder="不明なら空欄"
             value={form.treeAge}
             onChange={handleChange('treeAge')}
             aria-label="樹齢"
             style={fieldStyle}
           />
+          <span>年</span>
+          </div>
+          {ageError && <p id="tree-age-error" role="alert" style={{ color: 'var(--status-danger-text)' }}>樹齢は0〜2147483647の整数で入力してください。不明なら空欄にしてください。</p>}
         </div>
 
         {/* 樹形 → select (S2-M2) */}

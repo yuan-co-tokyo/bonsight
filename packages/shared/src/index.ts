@@ -5,31 +5,31 @@ export interface BonsaiDto {
   owner: string;
   visibility: BonsaiVisibility;
   name: string;
-  nickname?: string;
-  species?: string;
-  acquiredAt?: string;
-  estimatedAge?: number;
-  origin?: string;
-  potInfo?: string;
-  style?: string;
-  currentState?: string;
-  coverImageKey?: string;
-  coverImageUrl?: string;
+  nickname?: string | null;
+  species?: string | null;
+  acquiredAt?: string | null;
+  estimatedAge?: number | null;
+  origin?: string | null;
+  potInfo?: string | null;
+  style?: string | null;
+  currentState?: string | null;
+  coverImageKey?: string | null;
+  coverImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateBonsaiDto {
   name: string;
-  nickname?: string;
-  species?: string;
-  acquiredAt?: string;
-  estimatedAge?: number;
-  origin?: string;
-  potInfo?: string;
-  style?: string;
-  currentState?: string;
-  coverImageKey?: string;
+  nickname?: string | null;
+  species?: string | null;
+  acquiredAt?: string | null;
+  estimatedAge?: number | null;
+  origin?: string | null;
+  potInfo?: string | null;
+  style?: string | null;
+  currentState?: string | null;
+  coverImageKey?: string | null;
 }
 
 export interface UpdateBonsaiDto extends Partial<CreateBonsaiDto> {}

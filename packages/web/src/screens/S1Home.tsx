@@ -58,7 +58,7 @@ function toCardModel(bonsai: BonsaiDto | BonsaiStub): BonsaiCardModel {
     styleLabel: bonsai.style ?? '樹形未設定',
     acquiredLabel: bonsai.acquiredAt ?? '入手日未設定',
     updatedAt: bonsai.updatedAt,
-    coverImageUrl: bonsai.coverImageUrl,
+    coverImageUrl: bonsai.coverImageUrl ?? undefined,
   }
 }
 
