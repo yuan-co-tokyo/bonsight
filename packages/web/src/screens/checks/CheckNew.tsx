@@ -4,6 +4,7 @@ import type { PurchaseExperience, PurchasePhotoRole } from 'shared'
 import BonsightShell from '../../components/BonsightShell'
 import Button from '../../components/Button'
 import { createPurchaseCheck, uploadPurchasePhoto } from '../../api/purchaseCheckApi'
+import { resizeImage } from '../../lib/resizeImage'
 import './checks.css'
 const SLOTS: { role: PurchasePhotoRole; label: string }[] = [
   { role: 'OVERALL', label: '全体（必須）' },
@@ -14,12 +15,23 @@ function PhotoInput({
   label,
   onChange,
   disabled,
+  onProcessing,
 }: {
   label: string
   onChange: (file: File | null) => void
   disabled: boolean
+  onProcessing: (value: boolean) => void
 }) {
   const [preview, setPreview] = useState('')
+  const [processing, setProcessing] = useState(false)
+  const [error, setError] = useState('')
+  const version = useRef(0)
+  useEffect(
+    () => () => {
+      version.current += 1
+    },
+    []
+  )
   const input = useRef<HTMLInputElement>(null)
   useEffect(
     () => () => {
@@ -36,13 +48,40 @@ function PhotoInput({
           type="file"
           accept="image/*"
           disabled={disabled}
-          onChange={(event) => {
+          onChange={async (event) => {
             const file = event.target.files?.[0] ?? null
-            setPreview(file ? URL.createObjectURL(file) : '')
-            onChange(file)
+            const request = ++version.current
+            setPreview('')
+            setError('')
+            onChange(null)
+            setProcessing(!!file)
+            onProcessing(!!file)
+            if (!file) return
+            try {
+              const resized = await resizeImage(file)
+              if (request !== version.current) return
+              if (resized.type !== 'image/jpeg' || !resized.size || resized.size > 3750000)
+                throw new Error('写真の変換後サイズが大きすぎます。別の写真を選択してください。')
+              setPreview(URL.createObjectURL(resized))
+              onChange(resized)
+            } catch (error) {
+              if (request === version.current)
+                setError(error instanceof Error ? error.message : '写真を変換できませんでした。')
+            } finally {
+              if (request === version.current) {
+                setProcessing(false)
+                onProcessing(false)
+              }
+            }
           }}
         />
       </label>
+      {processing && <p role="status">写真を準備しています…</p>}
+      {error && (
+        <p role="alert" className="checks-error">
+          {error}
+        </p>
+      )}
       {preview && (
         <>
           <img src={preview} alt={`${label}のプレビュー`} />
@@ -72,6 +111,8 @@ export default function CheckNew() {
   const [note, setNote] = useState('')
   const [experience, setExperience] = useState<PurchaseExperience>('BEGINNER')
   const [busy, setBusy] = useState(false)
+  const [processing, setProcessing] = useState<Partial<Record<PurchasePhotoRole, boolean>>>({})
+  const preparing = Object.values(processing).some(Boolean)
   const [error, setError] = useState('')
   const heightInput = useRef<HTMLInputElement>(null)
   const priceInput = useRef<HTMLInputElement>(null)
@@ -80,7 +121,7 @@ export default function CheckNew() {
   const uploaded = useRef(new Map<File, string>())
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    if (submitted.current) return
+    if (submitted.current || preparing) return
     setError('')
     if (!files.OVERALL) {
       setError('全体の写真を選択してください')
@@ -107,13 +148,10 @@ export default function CheckNew() {
     }))
     if (
       photos.some(
-        ({ file }) =>
-          !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) ||
-          file.size === 0 ||
-          file.size > 3750000
+        ({ file }) => file.type !== 'image/jpeg' || file.size === 0 || file.size > 3750000
       )
     ) {
-      setError('写真は1枚3.75MB以下のJPEG・PNG・WebP・GIFを選択してください')
+      setError('写真の変換に失敗しました。別の写真を選択してください')
       return
     }
     submitted.current = true
@@ -162,6 +200,9 @@ export default function CheckNew() {
                   key={slot.role}
                   label={slot.label}
                   disabled={busy}
+                  onProcessing={(value) =>
+                    setProcessing((previous) => ({ ...previous, [slot.role]: value }))
+                  }
                   onChange={(file) =>
                     setFiles((previous) => ({ ...previous, [slot.role]: file ?? undefined }))
                   }
@@ -169,7 +210,7 @@ export default function CheckNew() {
               ))}
             </div>
             <p className="checks-note">
-              全体の写真は必須です。各写真は3.75MB以下のJPEG・PNG・WebP・GIFに対応しています。
+              全体の写真は必須です。選択した写真は自動的に縮小し、JPEGに変換します。
             </p>
             <label>
               樹種（店の表記・任意）
@@ -235,7 +276,7 @@ export default function CheckNew() {
           {busy && (
             <p role="status">写真を確認しています。AIの処理には数十秒かかることがあります。</p>
           )}
-          <Button type="submit" fullWidth disabled={busy}>
+          <Button type="submit" fullWidth disabled={busy || preparing}>
             {busy ? 'チェック中…' : 'AIで購入前チェック'}
           </Button>
           {!busy && <Link to="/checks">キャンセル</Link>}

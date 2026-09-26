@@ -3,8 +3,6 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
-  InternalServerErrorException,
-  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -22,6 +20,7 @@ import {
   RECORD_PURCHASE_CHECK_TOOL,
   SYSTEM_PROMPT,
 } from './purchase-check-prompt';
+import { mapBedrockError } from '../bedrock/bedrock-errors';
 import { parsePurchaseCheckResult } from './purchase-check-result';
 
 const LABELS = { OVERALL: '全体', BASE: '根元', FOLIAGE: '葉' };
@@ -31,34 +30,6 @@ function imageFormat(key: string): 'jpeg' | 'png' | 'webp' | 'gif' {
   if (ext === 'jpg' || ext === 'jpeg') return 'jpeg';
   throw new BadRequestException('対応する写真形式はJPEG、PNG、WebP、GIFです');
 }
-function bedrockError(error: unknown): never {
-  const name = error instanceof Error ? error.name : '';
-  const message = error instanceof Error ? error.message : String(error);
-  if (name === 'ResourceNotFoundException') {
-    Logger.warn(
-      `Bedrock ResourceNotFoundException: ${message}`,
-      'PurchaseCheckService',
-    );
-    throw new ServiceUnavailableException('AI診断サービスが利用できません');
-  }
-  if (name === 'ThrottlingException')
-    throw new ServiceUnavailableException(
-      'AI診断サービスが混雑しています。しばらく後に再試行してください',
-    );
-  if (name === 'AccessDeniedException') {
-    Logger.error(
-      `Bedrock AccessDeniedException: ${message}`,
-      'PurchaseCheckService',
-    );
-    throw new InternalServerErrorException(
-      'AI診断サービスへのアクセスが拒否されました',
-    );
-  }
-  if (name === 'ValidationException')
-    throw new BadRequestException(`AI診断リクエストが無効です: ${message}`);
-  throw new ServiceUnavailableException('AI診断に失敗しました');
-}
-
 @Injectable()
 export class PurchaseCheckService {
   private readonly s3 = new S3Client({
@@ -161,7 +132,7 @@ export class PurchaseCheckService {
           process.env.BEDROCK_MODEL_ID,
       });
     } catch (error) {
-      bedrockError(error);
+      mapBedrockError(error, 'PurchaseCheckService');
     }
     const output = response.output?.message?.content?.find(
       (block) => block.toolUse?.name === 'record_purchase_check',
