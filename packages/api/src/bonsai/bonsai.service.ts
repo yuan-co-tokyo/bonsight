@@ -199,7 +199,14 @@ export class BonsaiService {
       s3Keys.push(bonsai.coverImageKey);
     }
 
-    const deleted = await this.prisma.bonsai.delete({ where: { id } });
+    // Keep the purchase check as PURCHASED but drop its link to the deleted bonsai.
+    const [, deleted] = await this.prisma.$transaction([
+      this.prisma.purchaseCheck.updateMany({
+        where: { bonsaiId: id },
+        data: { bonsaiId: null },
+      }),
+      this.prisma.bonsai.delete({ where: { id } }),
+    ]);
 
     if (s3Keys.length > 0 && this.bucket) {
       try {

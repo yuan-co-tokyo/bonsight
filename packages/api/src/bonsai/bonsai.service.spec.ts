@@ -30,6 +30,13 @@ describe('BonsaiService', () => {
       update: jest.fn<Promise<unknown>, [unknown]>(),
       delete: jest.fn<Promise<unknown>, [unknown]>(),
     },
+    purchaseCheck: {
+      updateMany: jest.fn<Promise<unknown>, [unknown]>(),
+    },
+    media: {
+      findMany: jest.fn<Promise<unknown>, [unknown]>(),
+    },
+    $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 
   let service: BonsaiService;
@@ -295,5 +302,26 @@ describe('BonsaiService', () => {
 
     const result = await service.getBonsai('b4', OWNER);
     expect(result.coverImageUrl).toBeNull();
+  });
+
+  it('unlinks purchase checks when deleting a bonsai', async () => {
+    const bonsai = {
+      id: 'b5',
+      name: 'Matsu',
+      owner: OWNER,
+      coverImageKey: null,
+    };
+    prisma.bonsai.findUnique.mockResolvedValue(bonsai);
+    prisma.media.findMany.mockResolvedValue([]);
+    prisma.purchaseCheck.updateMany.mockResolvedValue({ count: 1 });
+    prisma.bonsai.delete.mockResolvedValue(bonsai);
+
+    await service.deleteBonsai('b5', OWNER);
+    expect(prisma.purchaseCheck.updateMany).toHaveBeenCalledWith({
+      where: { bonsaiId: 'b5' },
+      data: { bonsaiId: null },
+    });
+    expect(prisma.bonsai.delete).toHaveBeenCalledWith({ where: { id: 'b5' } });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 });
