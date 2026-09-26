@@ -97,3 +97,25 @@ model CareLog {
   updatedAt DateTime @updatedAt
   bonsai    Bonsai   @relation(fields: [bonsaiId], references: [id], onDelete: Cascade)
 }
+
+enum PurchaseExperience {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model PurchaseCheck {
+  id          String             @id @default(cuid())
+  owner       String
+  photoKeys   String[]
+  photoRoles  String[]
+  species     String?
+  heightCm    Int?
+  price       Int?
+  sellerNote  String?
+  experience  PurchaseExperience @default(BEGINNER)
+  result      Json
+  createdAt   DateTime           @default(now())
+
+  @@index([owner, createdAt])
+}

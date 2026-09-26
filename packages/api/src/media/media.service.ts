@@ -1,6 +1,14 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PresignRequestDto } from './dto/presign-request.dto';
 import { CreateMediaDto } from './dto/create-media.dto';
@@ -16,7 +24,9 @@ export class MediaService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async verifyBonsaiOwner(bonsaiId: string, sub: string) {
-    const bonsai = await this.prisma.bonsai.findUnique({ where: { id: bonsaiId } });
+    const bonsai = await this.prisma.bonsai.findUnique({
+      where: { id: bonsaiId },
+    });
     if (!bonsai) throw new NotFoundException(`Bonsai ${bonsaiId} not found`);
     if (bonsai.owner !== sub) throw new ForbiddenException();
     return bonsai;
@@ -25,7 +35,9 @@ export class MediaService {
   async presign(dto: PresignRequestDto, sub: string) {
     const timestamp = Date.now();
     let s3Key: string;
-    if (dto.type === 'cover') {
+    if (dto.type === 'purchase') {
+      s3Key = `users/${sub}/purchase-checks/${timestamp}-${dto.filename}`;
+    } else if (dto.type === 'cover') {
       s3Key = `users/${sub}/covers/${timestamp}-${dto.filename}`;
     } else {
       await this.verifyBonsaiOwner(dto.bonsaiId!, sub);
@@ -36,7 +48,9 @@ export class MediaService {
       Key: s3Key,
       ContentType: dto.contentType,
     });
-    const presignedUrl = await getSignedUrl(this.s3, command, { expiresIn: 300 });
+    const presignedUrl = await getSignedUrl(this.s3, command, {
+      expiresIn: 300,
+    });
     return { presignedUrl, s3Key };
   }
 
@@ -76,20 +90,26 @@ export class MediaService {
 
     const media = await this.prisma.media.findUnique({ where: { id } });
     if (!media) throw new NotFoundException(`Media ${id} not found`);
-    if (media.bonsaiId !== bonsaiId) throw new ForbiddenException('Media does not belong to this bonsai');
+    if (media.bonsaiId !== bonsaiId)
+      throw new ForbiddenException('Media does not belong to this bonsai');
 
     await this.prisma.media.delete({ where: { id } });
 
     if (this.bucket) {
       try {
-        await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: media.s3Key }));
+        await this.s3.send(
+          new DeleteObjectCommand({ Bucket: this.bucket, Key: media.s3Key }),
+        );
       } catch {
         // best-effort: S3 failure does not affect DB result
       }
     }
 
     try {
-      await this.prisma.aIAdvice.updateMany({ where: { mediaId: id }, data: { mediaId: null } });
+      await this.prisma.aIAdvice.updateMany({
+        where: { mediaId: id },
+        data: { mediaId: null },
+      });
     } catch {
       // best-effort: FK absent, failure is non-fatal
     }

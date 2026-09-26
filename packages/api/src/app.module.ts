@@ -1,3 +1,4 @@
+import { PurchaseCheckModule } from './purchase-check/purchase-check.module';
 import { Module } from '@nestjs/common';
 import { AdviceModule } from './advice/advice.module';
 import { AuthModule } from './auth/auth.module';
@@ -20,6 +21,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AdviceModule,
     ChatModule,
     MeModule,
+    PurchaseCheckModule,
   ],
 })
 export class AppModule {}

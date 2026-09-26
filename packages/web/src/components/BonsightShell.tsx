@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { signOut } from 'aws-amplify/auth'
 import BonsightLogo from './BonsightLogo'
 
-export type ScreenKey = 'S0' | 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8'
+export type ScreenKey = 'S0' | 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'S7' | 'S8' | 'checks'
 interface BonsightShellProps {
   screen: ScreenKey
   children: ReactNode
@@ -23,7 +23,7 @@ export default function BonsightShell({ screen, children, title, breadcrumbs }: 
     document.addEventListener('keydown', close)
     return () => document.removeEventListener('keydown', close)
   }, [open])
-  const links = [{ label: 'ホーム', to: '/home', active: screen === 'S1' }, { label: 'AI相談', to: '/s6', active: screen === 'S6' }, { label: '設定', to: '/s8', active: screen === 'S8' }]
+  const links = [{ label: 'ホーム', to: '/home', active: screen === 'S1' }, { label: 'AI相談', to: '/s6', active: screen === 'S6' }, { label: '購入前チェック', to: '/checks', active: screen === 'checks' }, { label: '設定', to: '/s8', active: screen === 'S8' }]
   return (
     <div data-screen={screen} className="bonsight-shell">
       <header className="site-header">

@@ -156,3 +156,40 @@ export interface UpdateCareLogDto {
   date?: string;
   memo?: string;
 }
+
+export type PurchaseExperience = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+export type PurchasePhotoRole = 'OVERALL' | 'BASE' | 'FOLIAGE';
+export interface PurchaseCheckResult {
+  species: { name: string; confidence: number };
+  overall: { recommendation: 'recommended' | 'consider' | 'caution'; summary: string };
+  aspects: { key: 'nebari' | 'tachiagari' | 'trunk' | 'branches' | 'foliage_health' | 'pot'; label: string; rating: 'good' | 'fair' | 'poor' | 'unknown'; comment: string }[];
+  risks: { title: string; severity: 'low' | 'medium' | 'high'; detail: string }[];
+  suitability: { level: 'easy' | 'moderate' | 'hard'; comment: string };
+  potential: { styleDirection: string; comment: string };
+  checklist: string[];
+  confidence: number;
+  disclaimer: string;
+}
+export interface CreatePurchaseCheckDto {
+  photoKeys: string[];
+  photoRoles: PurchasePhotoRole[];
+  species?: string;
+  heightCm?: number;
+  price?: number;
+  sellerNote?: string;
+  experience: PurchaseExperience;
+}
+export interface PurchaseCheckDto {
+  id: string;
+  owner: string;
+  photoKeys: string[];
+  photoRoles: PurchasePhotoRole[];
+  photoUrls: string[];
+  species: string | null;
+  heightCm: number | null;
+  price: number | null;
+  sellerNote: string | null;
+  experience: PurchaseExperience;
+  result: PurchaseCheckResult;
+  createdAt: string;
+}
