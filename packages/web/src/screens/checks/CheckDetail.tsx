@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { PurchaseCheckDto } from 'shared'
 import BonsightShell from '../../components/BonsightShell'
 import Button from '../../components/Button'
 import StatusBadge from '../../components/StatusBadge'
-import { deletePurchaseCheck, getPurchaseCheck } from '../../api/purchaseCheckApi'
+import {
+  deletePurchaseCheck,
+  getPurchaseCheck,
+  updatePurchaseCheck,
+} from '../../api/purchaseCheckApi'
 import CheckRecommendation from './CheckRecommendation'
+import CheckStatus from './CheckStatus'
 import './checks.css'
 export default function CheckDetail() {
   const { id } = useParams<{ id: string }>()
@@ -44,6 +49,18 @@ function CheckDetailContent({ id }: { id: string | undefined }) {
       setDeleting(false)
     }
   }
+  async function changeStatus(status: 'CONSIDERING' | 'PASSED') {
+    if (!id || deleting) return
+    setDeleting(true)
+    setError('')
+    try {
+      setCheck(await updatePurchaseCheck(id, status))
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '状態の更新に失敗しました')
+    } finally {
+      setDeleting(false)
+    }
+  }
   const result = check?.result
   return (
     <BonsightShell
@@ -62,6 +79,7 @@ function CheckDetailContent({ id }: { id: string | undefined }) {
           <>
             <section className="checks-card">
               <CheckRecommendation value={result.overall.recommendation} />
+              <CheckStatus status={check.status} />
               <h2 style={{ marginTop: 12 }}>{result.species.name}</h2>
               <p>{result.overall.summary}</p>
               <p className="checks-note">
@@ -185,43 +203,69 @@ function CheckDetailContent({ id }: { id: string | undefined }) {
               {check.heightCm !== null && <p>樹高：{check.heightCm}cm</p>}
               {check.sellerNote && <p>店の説明：{check.sellerNote}</p>}
             </section>
-            <Button
-              fullWidth
-              disabled={deleting}
-              onClick={() =>
-                navigate('/bonsai/new', {
-                  state: {
-                    purchasePrefill: {
-                      species: check.species || result.species.name,
-                      origin: '購入',
-                      currentState: result.overall.summary,
-                    },
-                  },
-                })
-              }
-            >
-              この盆栽を購入した → 登録する
-            </Button>
-            {confirm ? (
-              <div role="group" aria-label="削除の確認" className="checks-confirm">
-                <p>このチェックと写真を削除しますか？</p>
-                <Button variant="danger" disabled={deleting} onClick={() => void remove()}>
-                  {deleting ? '削除中…' : '削除する'}
-                </Button>{' '}
-                <Button variant="secondary" disabled={deleting} onClick={() => setConfirm(false)}>
-                  キャンセル
+            {check.status === 'CONSIDERING' && (
+              <>
+                <Button
+                  fullWidth
+                  disabled={deleting}
+                  onClick={() =>
+                    navigate('/bonsai/new', {
+                      state: {
+                        purchasePrefill: {
+                          species: check.species || result.species.name,
+                          name: check.species || result.species.name || '',
+                          acquiredAt: new Date(Date.now() + 9 * 60 * 60 * 1000)
+                            .toISOString()
+                            .slice(0, 10),
+                          purchaseCheckId: check.id,
+                          origin: '購入',
+                          currentState: result.overall.summary,
+                        },
+                      },
+                    })
+                  }
+                >
+                  この盆栽を購入した → 登録する
                 </Button>
-              </div>
-            ) : (
-              <Button
-                variant="danger"
-                fullWidth
-                style={{ marginTop: 16 }}
-                onClick={() => setConfirm(true)}
-              >
-                チェックを削除
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  disabled={deleting}
+                  onClick={() => void changeStatus('PASSED')}
+                >
+                  見送る（記録として残す）
+                </Button>
+              </>
+            )}
+            {check.status === 'PASSED' && (
+              <Button disabled={deleting} onClick={() => void changeStatus('CONSIDERING')}>
+                検討中に戻す
               </Button>
             )}
+            {check.status === 'PURCHASED' && check.bonsaiId && (
+              <Link to={`/bonsai/${check.bonsaiId}`}>登録した盆栽を見る</Link>
+            )}
+            {check.status === 'CONSIDERING' &&
+              (confirm ? (
+                <div role="group" aria-label="削除の確認" className="checks-confirm">
+                  <p>このチェックと写真を削除しますか？</p>
+                  <Button variant="danger" disabled={deleting} onClick={() => void remove()}>
+                    {deleting ? '削除中…' : '削除する'}
+                  </Button>{' '}
+                  <Button variant="secondary" disabled={deleting} onClick={() => setConfirm(false)}>
+                    キャンセル
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="danger"
+                  fullWidth
+                  style={{ marginTop: 16 }}
+                  onClick={() => setConfirm(true)}
+                >
+                  チェックを削除
+                </Button>
+              ))}
           </>
         )}
       </div>

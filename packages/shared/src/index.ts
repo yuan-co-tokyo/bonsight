@@ -1,6 +1,7 @@
 export type BonsaiVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 
 export interface BonsaiDto {
+  photoCopyFailed?: boolean;
   id: string;
   owner: string;
   visibility: BonsaiVisibility;
@@ -20,6 +21,7 @@ export interface BonsaiDto {
 }
 
 export interface CreateBonsaiDto {
+  purchaseCheckId?: string;
   name: string;
   nickname?: string | null;
   species?: string | null;
@@ -32,7 +34,7 @@ export interface CreateBonsaiDto {
   coverImageKey?: string | null;
 }
 
-export interface UpdateBonsaiDto extends Partial<CreateBonsaiDto> {}
+export interface UpdateBonsaiDto extends Partial<Omit<CreateBonsaiDto, 'purchaseCheckId'>> {}
 
 export type MediaType = "PHOTO" | "VIDEO";
 
@@ -179,7 +181,10 @@ export interface CreatePurchaseCheckDto {
   sellerNote?: string;
   experience: PurchaseExperience;
 }
+export type PurchaseCheckStatus = 'CONSIDERING' | 'PURCHASED' | 'PASSED';
 export interface PurchaseCheckDto {
+  status: PurchaseCheckStatus;
+  bonsaiId: string | null;
   id: string;
   owner: string;
   photoKeys: string[];

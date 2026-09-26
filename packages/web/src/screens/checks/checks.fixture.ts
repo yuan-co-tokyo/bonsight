@@ -1,6 +1,8 @@
 import type { PurchaseCheckDto } from 'shared'
 export const sampleCheck: PurchaseCheckDto = {
   id: 'c1',
+  status: 'CONSIDERING',
+  bonsaiId: null,
   owner: 'me',
   photoKeys: ['whole.jpg'],
   photoRoles: ['OVERALL'],

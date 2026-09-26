@@ -1,4 +1,4 @@
-import type { CreatePurchaseCheckDto, PurchaseCheckDto } from 'shared'
+import type { CreatePurchaseCheckDto, PurchaseCheckDto, PurchaseCheckStatus } from 'shared'
 import { apiFetch } from './client'
 
 export const getPurchaseChecks = () => apiFetch<PurchaseCheckDto[]>('/purchase-checks')
@@ -28,3 +28,12 @@ export async function uploadPurchasePhoto(file: File): Promise<string> {
   if (!response.ok) throw new Error('写真のアップロードに失敗しました。もう一度お試しください。')
   return s3Key
 }
+
+export const updatePurchaseCheck = (
+  id: string,
+  status: Exclude<PurchaseCheckStatus, 'PURCHASED'>
+) =>
+  apiFetch<PurchaseCheckDto>(`/purchase-checks/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })

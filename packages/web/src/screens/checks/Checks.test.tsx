@@ -7,6 +7,7 @@ import CheckNew from './CheckNew'
 import CheckDetail from './CheckDetail'
 import ChecksList from './ChecksList'
 import S2Form from '../S2Form'
+import { createBonsai } from '../../api/bonsaiApi'
 import * as api from '../../api/purchaseCheckApi'
 import { sampleCheck } from './checks.fixture'
 vi.mock('../../api/purchaseCheckApi', () => ({
@@ -15,6 +16,7 @@ vi.mock('../../api/purchaseCheckApi', () => ({
   getPurchaseCheck: vi.fn(),
   deletePurchaseCheck: vi.fn(),
   getPurchaseChecks: vi.fn(),
+  updatePurchaseCheck: vi.fn(),
 }))
 vi.mock('../../api/bonsaiApi', () => ({
   createBonsai: vi.fn(),
@@ -144,6 +146,95 @@ describe('購入前チェック', () => {
     expect(screen.getByLabelText('メモ')).toHaveValue('根元を確認して検討してください')
     expect(screen.getByRole('button', { name: '購入' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('表紙写真を追加')).toBeInTheDocument()
+  })
+  it('JSTの押下日と名前、チェックIDを登録へ引き継ぎ、コピー失敗を通知する', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-26T15:01:00Z'))
+    vi.mocked(createBonsai).mockResolvedValue({ id: 'b1', photoCopyFailed: true } as Awaited<
+      ReturnType<typeof createBonsai>
+    >)
+    renderChecks('/checks/c1')
+    fireEvent.click(await screen.findByRole('button', { name: 'この盆栽を購入した → 登録する' }))
+    expect(screen.getByLabelText('名前・愛称')).toHaveValue('五葉松')
+    expect(screen.getByLabelText('入手日')).toHaveValue('2026-09-27')
+    now.mockRestore()
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() =>
+      expect(createBonsai).toHaveBeenCalledWith(
+        expect.objectContaining({
+          purchaseCheckId: 'c1',
+          name: '五葉松',
+          acquiredAt: '2026-09-27',
+          species: '五葉松',
+          origin: '購入',
+        })
+      )
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('写真の引き継ぎに失敗しました')
+    expect(screen.getByRole('button', { name: '保存' })).toBeDisabled()
+    expect(screen.getByRole('link', { name: '登録した盆栽を見る' })).toHaveAttribute(
+      'href',
+      '/bonsai/b1'
+    )
+  })
+  it.each([
+    ['店の樹種', '推定樹種', '店の樹種'],
+    ['', '推定樹種', '推定樹種'],
+    ['', '', ''],
+  ])('名前の初期値は入力樹種、AI推定、空欄の順: %s', async (species, inferred, expected) => {
+    vi.mocked(api.getPurchaseCheck).mockResolvedValue({
+      ...sampleCheck,
+      species,
+      result: { ...sampleCheck.result, species: { name: inferred, confidence: 0.5 } },
+    })
+    renderChecks('/checks/c1')
+    fireEvent.click(await screen.findByRole('button', { name: 'この盆栽を購入した → 登録する' }))
+    expect(screen.getByLabelText('名前・愛称')).toHaveValue(expected)
+  })
+  it('検討中から見送りへ変更し、検討中に戻せる', async () => {
+    vi.mocked(api.updatePurchaseCheck)
+      .mockResolvedValueOnce({ ...sampleCheck, status: 'PASSED' })
+      .mockResolvedValueOnce(sampleCheck)
+    renderChecks('/checks/c1')
+    fireEvent.click(await screen.findByRole('button', { name: '見送る（記録として残す）' }))
+    expect(await screen.findByText('見送り')).toBeInTheDocument()
+    expect(api.updatePurchaseCheck).toHaveBeenCalledWith('c1', 'PASSED')
+    expect(
+      screen.queryByRole('button', { name: 'この盆栽を購入した → 登録する' })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'チェックを削除' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '検討中に戻す' }))
+    expect(
+      await screen.findByRole('button', { name: 'この盆栽を購入した → 登録する' })
+    ).toBeInTheDocument()
+    expect(api.updatePurchaseCheck).toHaveBeenLastCalledWith('c1', 'CONSIDERING')
+  })
+  it('購入済みには盆栽へのリンクを表示して登録ボタンを出さない', async () => {
+    vi.mocked(api.getPurchaseCheck).mockResolvedValue({
+      ...sampleCheck,
+      status: 'PURCHASED',
+      bonsaiId: 'b1',
+    })
+    renderChecks('/checks/c1')
+    expect(await screen.findByText('購入済み')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '登録した盆栽を見る' })).toHaveAttribute(
+      'href',
+      '/bonsai/b1'
+    )
+    expect(
+      screen.queryByRole('button', { name: 'この盆栽を購入した → 登録する' })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '検討中に戻す' })).not.toBeInTheDocument()
+  })
+  it('一覧で各状態のバッジを表示する', async () => {
+    vi.mocked(api.getPurchaseChecks).mockResolvedValue([
+      sampleCheck,
+      { ...sampleCheck, id: 'c2', status: 'PASSED' },
+      { ...sampleCheck, id: 'c3', status: 'PURCHASED', bonsaiId: 'b1' },
+    ])
+    renderChecks('/checks')
+    expect(await screen.findByText('検討中')).toBeInTheDocument()
+    expect(screen.getByText('見送り')).toBeInTheDocument()
+    expect(screen.getByText('購入済み')).toBeInTheDocument()
   })
   it('一覧にサムネイルとおすすめ度、新規への導線がある', async () => {
     renderChecks('/checks')

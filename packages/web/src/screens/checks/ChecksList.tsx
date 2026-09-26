@@ -5,6 +5,7 @@ import BonsightShell from '../../components/BonsightShell'
 import Button from '../../components/Button'
 import { getPurchaseChecks } from '../../api/purchaseCheckApi'
 import CheckRecommendation from './CheckRecommendation'
+import CheckStatus from './CheckStatus'
 import './checks.css'
 export default function ChecksList() {
   const [checks, setChecks] = useState<PurchaseCheckDto[] | null>(null)
@@ -63,6 +64,7 @@ export default function ChecksList() {
                       {new Date(check.createdAt).toLocaleDateString('ja-JP')}
                     </p>
                     <CheckRecommendation value={check.result.overall.recommendation} />
+                    <CheckStatus status={check.status} />
                   </div>
                 </Link>
               </li>

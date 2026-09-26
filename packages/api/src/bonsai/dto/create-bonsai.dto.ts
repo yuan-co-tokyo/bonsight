@@ -13,6 +13,11 @@ const emptyToNull = ({ value }: { value: unknown }): unknown =>
   value === '' ? null : value;
 
 export class CreateBonsaiDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  purchaseCheckId?: string;
+
   @IsString()
   @IsNotEmpty()
   name!: string;

@@ -104,18 +104,26 @@ enum PurchaseExperience {
   ADVANCED
 }
 
+enum PurchaseCheckStatus {
+  CONSIDERING
+  PURCHASED
+  PASSED
+}
+
 model PurchaseCheck {
-  id          String             @id @default(cuid())
-  owner       String
-  photoKeys   String[]
-  photoRoles  String[]
-  species     String?
-  heightCm    Int?
-  price       Int?
-  sellerNote  String?
-  experience  PurchaseExperience @default(BEGINNER)
-  result      Json
-  createdAt   DateTime           @default(now())
+  status     PurchaseCheckStatus @default(CONSIDERING)
+  bonsaiId   String?
+  id         String              @id @default(cuid())
+  owner      String
+  photoKeys  String[]
+  photoRoles String[]
+  species    String?
+  heightCm   Int?
+  price      Int?
+  sellerNote String?
+  experience PurchaseExperience  @default(BEGINNER)
+  result     Json
+  createdAt  DateTime            @default(now())
 
   @@index([owner, createdAt])
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import type { CreateBonsaiDto } from 'shared'
 import { createBonsai, getBonsai, getCoverPresignUrl, updateBonsai } from '../api/bonsaiApi'
 import BonsightShell from '../components/BonsightShell'
@@ -46,21 +46,31 @@ export default function S2Form() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
-  const candidate = (location.state as { purchasePrefill?: { species?: string; origin?: string; currentState?: string } } | null)?.purchasePrefill
+  const candidate = (location.state as {
+    purchasePrefill?: {
+      species?: string
+      origin?: string
+      currentState?: string
+      name?: string
+      acquiredAt?: string
+      purchaseCheckId?: string
+    }
+  } | null)?.purchasePrefill
   const prefill = id ? undefined : candidate
   const isEditMode = id !== undefined
   const [form, setForm] = useState<FormState>({
-    name: '',
+    name: typeof prefill?.name === 'string' ? prefill.name : '',
     speciesJa: typeof prefill?.species === 'string' ? prefill.species : '',
     treeAge: '',
     style: '',
-    acquiredAt: '',
+    acquiredAt: typeof prefill?.acquiredAt === 'string' ? prefill.acquiredAt : '',
     note: typeof prefill?.currentState === 'string' ? prefill.currentState : '',
   })
   const ageInputRef = useRef<HTMLInputElement>(null)
   const [ageError, setAgeError] = useState(false)
   const [nameError, setNameError] = useState(false)
   const [loading, setLoading] = useState(isEditMode)
+  const [registeredId, setRegisteredId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
   const [origin, setOrigin] = useState(prefill?.origin === '購入' ? '購入' : '')
@@ -106,6 +116,7 @@ export default function S2Form() {
     const age = form.treeAge.trim() === '' ? null : Number(form.treeAge)
     const empty = isEditMode ? null : undefined
     return {
+      ...(!isEditMode && typeof prefill?.purchaseCheckId === 'string' ? { purchaseCheckId: prefill.purchaseCheckId } : {}),
       name: form.name.trim(),
       species: form.speciesJa.trim() || empty,
       estimatedAge: age ?? empty,
@@ -117,6 +128,7 @@ export default function S2Form() {
   }
 
   async function handleSave() {
+    if (saving || registeredId) return
     if (!form.name.trim()) {
       setNameError(true)
       return
@@ -146,6 +158,11 @@ export default function S2Form() {
       const saved = id
         ? await updateBonsai(id, dto)
         : await createBonsai(dto)
+      if (!id && saved.photoCopyFailed) {
+        setRegisteredId(saved.id)
+        setApiError('盆栽は登録されました。写真の引き継ぎに失敗しました')
+        return
+      }
       navigate(id ? `/bonsai/${id}` : `/bonsai/${saved.id}`, { replace: true })
     } catch (e) {
       setApiError(e instanceof Error ? e.message : '保存に失敗しました')
@@ -188,6 +205,8 @@ export default function S2Form() {
         {apiError && (
           <div role="alert" style={{ fontSize: 13, color: 'var(--status-danger-text)' }}>{apiError}</div>
         )}
+
+        {registeredId && <Link to={`/bonsai/${registeredId}`}>登録した盆栽を見る</Link>}
 
         {/* 表紙写真 (S2-H1) */}
         <div>
@@ -367,7 +386,7 @@ export default function S2Form() {
             style={textareaStyle}
           />
         </div>
-        <button className="primary-action" disabled={saving || loading || uploading} onClick={handleSave}>{uploading ? 'アップロード中...' : saving ? '保存中...' : '保存'}</button>
+        <button className="primary-action" disabled={saving || loading || uploading || !!registeredId} onClick={handleSave}>{uploading ? 'アップロード中...' : saving ? '保存中...' : '保存'}</button>
         <button className="text-action" onClick={() => navigate(-1)}>キャンセル</button>
       </div>
     </BonsightShell>
