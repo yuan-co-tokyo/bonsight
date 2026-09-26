@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -22,6 +23,8 @@ import {
 } from './purchase-check-prompt';
 import { mapBedrockError } from '../bedrock/bedrock-errors';
 import { parsePurchaseCheckResult } from './purchase-check-result';
+
+import { UpdatePurchaseCheckDto } from './update-purchase-check.dto';
 
 const LABELS = { OVERALL: '全体', BASE: '根元', FOLIAGE: '葉' };
 function imageFormat(key: string): 'jpeg' | 'png' | 'webp' | 'gif' {
@@ -166,6 +169,23 @@ export class PurchaseCheckService {
     if (!check) throw new NotFoundException('購入前チェックが見つかりません');
     if (check.owner !== owner) throw new ForbiddenException();
     return this.response(check);
+  }
+  async update(id: string, dto: UpdatePurchaseCheckDto, owner: string) {
+    if (!['CONSIDERING', 'PASSED'].includes(dto.status))
+      throw new BadRequestException('状態が無効です');
+    await this.get(id, owner);
+    const updated = await this.prisma.purchaseCheck.updateMany({
+      where: {
+        id,
+        owner,
+        bonsaiId: null,
+        status: { in: ['CONSIDERING', 'PASSED'] },
+      },
+      data: { status: dto.status },
+    });
+    if (updated.count !== 1)
+      throw new ConflictException('購入済みのチェックは変更できません');
+    return this.get(id, owner);
   }
   async delete(id: string, owner: string) {
     const check = await this.get(id, owner);

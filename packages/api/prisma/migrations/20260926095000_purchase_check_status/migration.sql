@@ -1,0 +1,4 @@
+CREATE TYPE "PurchaseCheckStatus" AS ENUM ('CONSIDERING', 'PURCHASED', 'PASSED');
+ALTER TABLE "PurchaseCheck"
+ADD COLUMN "status" "PurchaseCheckStatus" NOT NULL DEFAULT 'CONSIDERING',
+ADD COLUMN "bonsaiId" TEXT;

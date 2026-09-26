@@ -6,6 +6,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
 import { S3Client } from '@aws-sdk/client-s3';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   ValidationPipe,
@@ -15,6 +16,8 @@ import type { PrismaClient } from '../../generated/prisma';
 import { PurchaseCheckService } from './purchase-check.service';
 import { CreatePurchaseCheckDto } from './create-purchase-check.dto';
 import { sampleResult } from './purchase-check.fixture';
+
+import { UpdatePurchaseCheckDto } from './update-purchase-check.dto';
 
 const key = 'users/me/purchase-checks/123-photo.jpg';
 const check = {
@@ -39,6 +42,7 @@ describe('PurchaseCheckService', () => {
       findMany: query(),
       findUnique: query(),
       delete: query(),
+      updateMany: query(),
     },
   };
   const converse = jest.fn<
@@ -209,4 +213,44 @@ describe('PurchaseCheckService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     }
   });
+  it.each(['CONSIDERING', 'PASSED'] as const)(
+    'updates status to %s for an unregistered owned check',
+    async (status) => {
+      prisma.purchaseCheck.updateMany.mockResolvedValue({ count: 1 });
+      await service.update('c1', { status }, 'me');
+      expect(prisma.purchaseCheck.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'c1',
+          owner: 'me',
+          bonsaiId: null,
+          status: { in: ['CONSIDERING', 'PASSED'] },
+        },
+        data: { status },
+      });
+    },
+  );
+  it('cannot update a purchased check', async () => {
+    prisma.purchaseCheck.updateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      service.update('c1', { status: 'PASSED' }, 'me'),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+  it('cannot update another owner check', async () => {
+    await expect(
+      service.update('c1', { status: 'PASSED' }, 'other'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.purchaseCheck.updateMany).not.toHaveBeenCalled();
+  });
+  it.each(['PURCHASED', 'invalid', null, undefined])(
+    'rejects status %s at the API boundary',
+    async (status) => {
+      const pipe = new ValidationPipe({ whitelist: true, transform: true });
+      await expect(
+        pipe.transform(
+          { status },
+          { type: 'body', metatype: UpdatePurchaseCheckDto },
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    },
+  );
 });
