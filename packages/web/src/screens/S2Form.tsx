@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import type { CreateBonsaiDto } from 'shared'
 import { createBonsai, getBonsai, getCoverPresignUrl, updateBonsai } from '../api/bonsaiApi'
 import BonsightShell from '../components/BonsightShell'
@@ -45,14 +45,17 @@ const labelStyle: React.CSSProperties = {
 export default function S2Form() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const candidate = (location.state as { purchasePrefill?: { species?: string; origin?: string; currentState?: string } } | null)?.purchasePrefill
+  const prefill = id ? undefined : candidate
   const isEditMode = id !== undefined
   const [form, setForm] = useState<FormState>({
     name: '',
-    speciesJa: '',
+    speciesJa: typeof prefill?.species === 'string' ? prefill.species : '',
     treeAge: '',
     style: '',
     acquiredAt: '',
-    note: '',
+    note: typeof prefill?.currentState === 'string' ? prefill.currentState : '',
   })
   const ageInputRef = useRef<HTMLInputElement>(null)
   const [ageError, setAgeError] = useState(false)
@@ -60,7 +63,7 @@ export default function S2Form() {
   const [loading, setLoading] = useState(isEditMode)
   const [saving, setSaving] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
-  const [origin, setOrigin] = useState('')
+  const [origin, setOrigin] = useState(prefill?.origin === '購入' ? '購入' : '')
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)

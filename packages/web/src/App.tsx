@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { fetchAuthSession } from 'aws-amplify/auth'
 import { Hub } from 'aws-amplify/utils'
+import ChecksList from './screens/checks/ChecksList'
+import CheckNew from './screens/checks/CheckNew'
+import CheckDetail from './screens/checks/CheckDetail'
 import S0Landing from './screens/S0Landing'
 import S1Home from './screens/S1Home'
 import S2Form from './screens/S2Form'
@@ -46,6 +49,9 @@ function AppRoutes({ authed }: { authed: boolean }) {
         <Route path="/s6" element={<S6AiChat />} />
         <Route path="/s7/:mediaId" element={<S7Viewer />} />
         <Route path="/s7" element={<S7Viewer />} />
+        <Route path="/checks" element={<ChecksList />} />
+        <Route path="/checks/new" element={<CheckNew />} />
+        <Route path="/checks/:id" element={<CheckDetail />} />
         <Route path="/s8" element={<S8Settings />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

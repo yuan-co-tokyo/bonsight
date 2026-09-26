@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   Injectable,
   Inject,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
@@ -18,37 +17,11 @@ import {
   RECORD_DIAGNOSIS_TOOL,
   buildDiagnosisContent,
 } from './diagnosis-prompt';
+import { mapBedrockError } from '../bedrock/bedrock-errors';
 import type { DiagnosisContext } from './diagnosis-prompt';
 
 export class CreateAdviceDto {
   @IsOptional() @IsString() mediaId?: string;
-}
-
-function mapBedrockError(err: unknown): never {
-  const name = err instanceof Error ? err.name : '';
-  const message = err instanceof Error ? err.message : '';
-  if (name === 'ResourceNotFoundException') {
-    Logger.warn(
-      `Bedrock ResourceNotFoundException: ${message}`,
-      'AdviceService',
-    );
-    throw new ServiceUnavailableException('AI診断サービスが利用できません');
-  }
-  if (name === 'ThrottlingException') {
-    throw new ServiceUnavailableException(
-      'AI診断サービスが混雑しています。しばらく後に再試行してください',
-    );
-  }
-  if (name === 'AccessDeniedException') {
-    Logger.error(`Bedrock AccessDeniedException: ${message}`, 'AdviceService');
-    throw new InternalServerErrorException(
-      'AI診断サービスへのアクセスが拒否されました',
-    );
-  }
-  if (name === 'ValidationException') {
-    throw new BadRequestException(`AI診断リクエストが無効です: ${message}`);
-  }
-  throw new ServiceUnavailableException('AI診断に失敗しました');
 }
 
 @Injectable()
@@ -206,7 +179,7 @@ export class AdviceService {
         modelId: this.diagnosisModelId,
       });
     } catch (err) {
-      mapBedrockError(err);
+      mapBedrockError(err, 'AdviceService');
     }
 
     const block = res.output?.message?.content?.find((c) => c.toolUse)?.toolUse;

@@ -65,6 +65,12 @@ export class BonsightApiStack extends cdk.Stack {
     );
     instanceRole.addToPolicy(
       new iam.PolicyStatement({
+        actions: ['s3:DeleteObject'],
+        resources: [`${mediaBucketArn}/users/*`],
+      }),
+    );
+    instanceRole.addToPolicy(
+      new iam.PolicyStatement({
         actions: [
           'ecr:BatchCheckLayerAvailability',
           'ecr:BatchGetImage',

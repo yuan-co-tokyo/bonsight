@@ -12,6 +12,6 @@ export class PresignRequestDto {
   contentType!: string;
 
   @IsOptional()
-  @IsIn(['media', 'cover'])
+  @IsIn(['media', 'cover', 'purchase'])
   type?: string;
 }
