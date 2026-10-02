@@ -92,7 +92,7 @@ export const RECORD_DIAGNOSIS_TOOL = {
 };
 
 export interface DiagnosisPhoto {
-  s3Key: string;
+  format: 'jpeg';
   bytes: Uint8Array;
   takenAt?: Date | null;
 }
@@ -139,10 +139,7 @@ function dateJst(date?: Date | null): string {
 }
 
 function imageBlock(photo: DiagnosisPhoto): ContentBlock {
-  const ext = photo.s3Key.split('.').pop()?.toLowerCase();
-  const format =
-    ext === 'png' || ext === 'webp' || ext === 'gif' ? ext : 'jpeg';
-  return { image: { format, source: { bytes: photo.bytes } } };
+  return { image: { format: photo.format, source: { bytes: photo.bytes } } };
 }
 
 /** All dates, records and image bytes are supplied by the caller; no IO or clock access. */

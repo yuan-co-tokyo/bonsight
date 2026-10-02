@@ -1,3 +1,7 @@
+jest.mock('../bedrock/normalize-image', () => ({
+  normalizeImageForAi: jest.fn(),
+}));
+import { normalizeImageForAi } from '../bedrock/normalize-image';
 jest.mock('@aws-sdk/client-bedrock-runtime', () => {
   const send = jest.fn();
   return {
@@ -61,6 +65,10 @@ describe('AdviceService.createAdvice', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    jest
+      .mocked(normalizeImageForAi)
+      .mockReset()
+      .mockResolvedValue({ bytes: new Uint8Array([9, 8]), format: 'jpeg' });
     prisma = {
       user: {
         findFirst: jest
@@ -219,7 +227,7 @@ describe('AdviceService.createAdvice', () => {
     expect(content.filter((block) => block.image)).toHaveLength(2);
     expect(content[1].text).toContain('今回の写真');
     expect(content[4].text).toContain('前回診断時の写真(撮影日: 2026-08-01');
-    expect(content[5].image?.format).toBe('png');
+    expect(content[5].image?.format).toBe('jpeg');
     expect(content[3].text).toContain(JSON.stringify(mockDiagnosis));
     expect(prisma.aIAdvice.findFirst).toHaveBeenCalledWith({
       where: { bonsaiId: 'b1', mediaId: { not: null, notIn: ['m1'] } },
@@ -477,5 +485,67 @@ describe('AdviceService.createAdvice', () => {
     await expect(service.createAdvice('b1', {}, 'sub1')).rejects.toThrow(
       BadRequestException,
     );
+  });
+  it('sends normalized current and previous bytes as JPEG', async () => {
+    prisma.aIAdvice.findFirst.mockResolvedValue({
+      mediaId: 'old',
+      diagnosis: mockDiagnosis,
+    });
+    prisma.media.findUnique.mockResolvedValue({
+      id: 'old',
+      bonsaiId: 'b1',
+      s3Key: 'old.heic',
+      takenAt: null,
+    });
+    jest
+      .mocked(normalizeImageForAi)
+      .mockResolvedValueOnce({ bytes: new Uint8Array([4]), format: 'jpeg' })
+      .mockResolvedValueOnce({ bytes: new Uint8Array([5]), format: 'jpeg' });
+    await service.createAdvice('b1', {}, 'sub1');
+    const images = bedrock.converse.mock.calls[0][0].messages[0].content
+      .filter((block) => block.image)
+      .map((block) => block.image);
+    expect(images).toEqual([
+      { format: 'jpeg', source: { bytes: new Uint8Array([4]) } },
+      { format: 'jpeg', source: { bytes: new Uint8Array([5]) } },
+    ]);
+    expect(normalizeImageForAi).toHaveBeenCalledTimes(2);
+  });
+  it('continues without comparison when the previous photo cannot be decoded', async () => {
+    prisma.aIAdvice.findFirst.mockResolvedValue({
+      mediaId: 'old',
+      diagnosis: mockDiagnosis,
+    });
+    prisma.media.findUnique.mockResolvedValue({
+      id: 'old',
+      bonsaiId: 'b1',
+      s3Key: 'old.heic',
+      takenAt: null,
+    });
+    jest
+      .mocked(normalizeImageForAi)
+      .mockResolvedValueOnce({ bytes: new Uint8Array([4]), format: 'jpeg' })
+      .mockRejectedValueOnce(new BadRequestException('unsupported'));
+    const warn = jest.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+    try {
+      await service.createAdvice('b1', {}, 'sub1');
+      expect(
+        bedrock.converse.mock.calls[0][0].messages[0].content.filter(
+          (block) => block.image,
+        ),
+      ).toHaveLength(1);
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+  it('rejects undecodable current photos before calling Bedrock', async () => {
+    jest
+      .mocked(normalizeImageForAi)
+      .mockRejectedValueOnce(new BadRequestException('unsupported'));
+    await expect(service.createAdvice('b1', {}, 'sub1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(bedrock.converse).not.toHaveBeenCalled();
   });
 });
