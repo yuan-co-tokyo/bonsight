@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "cleanup:orphan-s3": "ts-node scripts/cleanup-orphan-s3.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1075.0",

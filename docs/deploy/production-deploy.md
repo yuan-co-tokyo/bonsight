@@ -198,3 +198,7 @@ aws ssm put-parameter \
 cd infrastructure
 npx cdk deploy BonsightBillingStack-prod -c env=prod --profile bonsight-prod
 ```
+
+## S3 の未参照写真を整理する場合
+
+通常のデプロイでは実行しません。手動で整理する場合は、[S3 未参照写真の掃除手順](s3-orphan-cleanup.md) に従い、ドライランの結果を確認してから明示的に実行してください。
