@@ -18,6 +18,7 @@ import {
   buildDiagnosisContent,
 } from './diagnosis-prompt';
 import { mapBedrockError } from '../bedrock/bedrock-errors';
+import { normalizeImageForAi } from '../bedrock/normalize-image';
 import type { DiagnosisContext } from './diagnosis-prompt';
 
 export class CreateAdviceDto {
@@ -59,7 +60,6 @@ export class AdviceService {
     const bonsai = await this.verifyBonsaiOwner(bonsaiId, sub);
 
     let bytes: Uint8Array;
-    let s3Key: string;
     let takenAt: Date | null = null;
     let resolvedMediaId: string | null = null;
 
@@ -70,7 +70,6 @@ export class AdviceService {
       if (!media || media.bonsaiId !== bonsaiId)
         throw new BadRequestException('写真がありません');
       bytes = await this.getS3Bytes(media.s3Key);
-      s3Key = media.s3Key;
       takenAt = media.takenAt;
       resolvedMediaId = media.id;
     } else {
@@ -80,18 +79,17 @@ export class AdviceService {
       });
       if (latestMedia) {
         bytes = await this.getS3Bytes(latestMedia.s3Key);
-        s3Key = latestMedia.s3Key;
         takenAt = latestMedia.takenAt;
         resolvedMediaId = latestMedia.id;
       } else if (bonsai.coverImageKey) {
         bytes = await this.getS3Bytes(bonsai.coverImageKey);
-        s3Key = bonsai.coverImageKey;
         resolvedMediaId = null;
       } else {
         throw new BadRequestException('写真がありません');
       }
     }
 
+    const photo = await normalizeImageForAi(bytes);
     const diagnosedAt = new Date();
     const since = new Date(diagnosedAt.getTime() - 90 * 24 * 60 * 60 * 1000);
     const [user, careLogs, latestAdvice] = await Promise.all([
@@ -128,8 +126,7 @@ export class AdviceService {
           const previousBytes = await this.getS3Bytes(previousMedia.s3Key);
           previous = {
             photo: {
-              s3Key: previousMedia.s3Key,
-              bytes: previousBytes,
+              ...(await normalizeImageForAi(previousBytes)),
               takenAt: previousMedia.takenAt,
             },
             diagnosis: latestAdvice.diagnosis,
@@ -157,7 +154,7 @@ export class AdviceService {
       user,
       careLogs,
       diagnosedAt,
-      photo: { s3Key, bytes, takenAt },
+      photo: { ...photo, takenAt },
       previous,
     });
 

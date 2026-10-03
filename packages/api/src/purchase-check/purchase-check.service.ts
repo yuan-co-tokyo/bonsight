@@ -26,13 +26,9 @@ import { parsePurchaseCheckResult } from './purchase-check-result';
 
 import { UpdatePurchaseCheckDto } from './update-purchase-check.dto';
 
+import { normalizeImageForAi } from '../bedrock/normalize-image';
+
 const LABELS = { OVERALL: '全体', BASE: '根元', FOLIAGE: '葉' };
-function imageFormat(key: string): 'jpeg' | 'png' | 'webp' | 'gif' {
-  const ext = key.split('.').pop()?.toLowerCase();
-  if (ext === 'png' || ext === 'webp' || ext === 'gif') return ext;
-  if (ext === 'jpg' || ext === 'jpeg') return 'jpeg';
-  throw new BadRequestException('対応する写真形式はJPEG、PNG、WebP、GIFです');
-}
 @Injectable()
 export class PurchaseCheckService {
   private readonly s3 = new S3Client({
@@ -82,7 +78,6 @@ export class PurchaseCheckService {
         key.slice(prefix.length).includes('/')
       )
         throw new ForbiddenException('photoKeys prefix mismatch');
-      imageFormat(key);
     }
     const photos = await Promise.all(
       dto.photoKeys.map(async (key, index) => {
@@ -92,11 +87,8 @@ export class PurchaseCheckService {
           );
           if (!response.Body) throw new Error('Photo body missing');
           const bytes = await response.Body.transformToByteArray();
-          if (bytes.length === 0 || bytes.length > 3750000)
-            throw new BadRequestException('写真は1枚3.75MB以下にしてください');
           return {
-            bytes,
-            format: imageFormat(key),
+            ...(await normalizeImageForAi(bytes)),
             label: LABELS[dto.photoRoles[index]],
           };
         } catch (error) {

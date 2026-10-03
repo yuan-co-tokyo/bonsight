@@ -1,8 +1,13 @@
+jest.mock('../bedrock/normalize-image', () => ({
+  normalizeImageForAi: jest.fn(),
+}));
+import { normalizeImageForAi } from '../bedrock/normalize-image';
 jest.mock('@aws-sdk/client-s3', () => ({
   S3Client: jest.fn(),
   GetObjectCommand: jest.fn((input: unknown) => input),
   DeleteObjectsCommand: jest.fn((input: unknown) => input),
 }));
+import type { ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { S3Client } from '@aws-sdk/client-s3';
 import {
   BadRequestException,
@@ -53,6 +58,10 @@ describe('PurchaseCheckService', () => {
   let service: PurchaseCheckService;
   beforeEach(() => {
     jest.clearAllMocks();
+    jest
+      .mocked(normalizeImageForAi)
+      .mockReset()
+      .mockResolvedValue({ bytes: new Uint8Array([9, 8]), format: 'jpeg' });
     send.mockReset();
     converse.mockReset();
     (S3Client as jest.Mock).mockImplementation(() => ({ send }));
@@ -253,4 +262,31 @@ describe('PurchaseCheckService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     },
   );
+  it('uses normalized bytes and JPEG regardless of filename or original size', async () => {
+    const original = new Uint8Array(4000000);
+    send.mockResolvedValue({
+      Body: { transformToByteArray: () => Promise.resolve(original) },
+    });
+    await service.create(
+      { ...dto, photoKeys: ['users/me/purchase-checks/photo.heic'] },
+      'me',
+    );
+    expect(normalizeImageForAi).toHaveBeenCalledWith(original);
+    const request = converse.mock.calls[0][0] as {
+      messages: { content: ContentBlock[] }[];
+    };
+    const images = request.messages[0].content
+      ?.filter((block) => block.image)
+      .map((block) => block.image);
+    expect(images).toEqual([
+      { format: 'jpeg', source: { bytes: new Uint8Array([9, 8]) } },
+    ]);
+  });
+  it('preserves the unsupported format error and does not invoke Bedrock', async () => {
+    jest
+      .mocked(normalizeImageForAi)
+      .mockRejectedValueOnce(new BadRequestException('unsupported'));
+    await expect(service.create(dto, 'me')).rejects.toThrow('unsupported');
+    expect(converse).not.toHaveBeenCalled();
+  });
 });

@@ -8,7 +8,7 @@ import type { DiagnosisContext } from './diagnosis-prompt';
 const context: DiagnosisContext = {
   bonsai: { name: '翁', species: '五葉松' },
   diagnosedAt: new Date('2026-09-23T16:00:00Z'),
-  photo: { s3Key: 'photo.jpg', bytes: new Uint8Array([1]) },
+  photo: { format: 'jpeg', bytes: new Uint8Array([1]) },
   careLogs: [],
 };
 
@@ -72,7 +72,7 @@ describe('buildDiagnosisContent', () => {
       photo: { ...context.photo, takenAt: new Date('2026-09-22T16:00:00Z') },
       previous: {
         photo: {
-          s3Key: 'old.webp',
+          format: 'jpeg',
           bytes: new Uint8Array([2]),
           takenAt: new Date('2026-08-22T16:00:00Z'),
         },
@@ -84,7 +84,7 @@ describe('buildDiagnosisContent', () => {
     expect(content[2].image?.format).toBe('jpeg');
     expect(content[3].text).toContain('{"health":[]}');
     expect(content[4].text).toContain('前回診断時の写真(撮影日: 2026-08-23');
-    expect(content[5].image?.format).toBe('webp');
+    expect(content[5].image?.format).toBe('jpeg');
   });
 
   it('季節と登録樹種を尊重し比較の捏造を禁止する。比較schemaは任意', () => {
