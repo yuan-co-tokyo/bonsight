@@ -15,7 +15,7 @@
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-input);
-  touch-action: none;
+  touch-action: pan-y; /* keep vertical page scroll; horizontal drags move the divider */
   cursor: ew-resize;
 }
 .compare-frame img {
