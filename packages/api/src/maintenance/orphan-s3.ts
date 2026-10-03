@@ -150,3 +150,46 @@ export async function deleteOrphans(
   }
   return { deleted, skipped, failures };
 }
+export function requireEnv(
+  env: Record<string, string | undefined>,
+  names: string[],
+): Record<string, string> {
+  const missing = names.filter((name) => !env[name]?.trim());
+  // The script deliberately ignores .env so a forgotten export cannot fall back to local settings.
+  if (missing.length)
+    throw new Error(
+      `Missing environment variables: ${missing.join(', ')} (export them in this shell; .env is not loaded)`,
+    );
+  return Object.fromEntries(names.map((name) => [name, env[name]!.trim()]));
+}
+export function describeDatabase(url: string): { host: string; label: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('DATABASE_URL is not a valid URL');
+  }
+  const host = parsed.hostname;
+  const database = parsed.pathname.replace(/^\//, '') || '(default)';
+  const user = parsed.username ? `${decodeURIComponent(parsed.username)}@` : '';
+  return {
+    host,
+    label: `${user}${host}${parsed.port ? `:${parsed.port}` : ''}/${database}`,
+  };
+}
+const LOCAL_DB_HOSTS = new Set([
+  'localhost',
+  '127.0.0.1',
+  '::1',
+  '[::1]',
+  'db',
+  'postgres',
+  'host.docker.internal',
+]);
+export function assertTargetsConsistent(bucket: string, dbHost: string): void {
+  // A prod bucket checked against a local DB would mark every prod photo as an orphan.
+  if (bucket.startsWith('bonsight-media-prod-') && LOCAL_DB_HOSTS.has(dbHost))
+    throw new Error(
+      `Refusing to scan prod bucket ${bucket} against local database host ${dbHost}`,
+    );
+}

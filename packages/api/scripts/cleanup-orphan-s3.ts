@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
@@ -12,6 +11,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import {
   USERS_PREFIX,
   validateBucket,
+  requireEnv,
+  describeDatabase,
+  assertTargetsConsistent,
   collectReferencedKeys,
   findOrphans,
   summarizeOrphans,
@@ -40,12 +42,18 @@ async function main() {
       return;
     } else throw new Error(`Unknown or incomplete option: ${args[i]}`);
   }
-  const bucket = process.env.S3_BUCKET_NAME ?? '';
+  // .env is intentionally not loaded: every target must be exported explicitly.
+  const {
+    S3_BUCKET_NAME: bucket,
+    DATABASE_URL: databaseUrl,
+    AWS_REGION: region,
+  } = requireEnv(process.env, ['S3_BUCKET_NAME', 'DATABASE_URL', 'AWS_REGION']);
   validateBucket(bucket);
-  const databaseUrl = process.env.DATABASE_URL;
-  const region = process.env.AWS_REGION;
-  if (!databaseUrl || !region)
-    throw new Error('DATABASE_URL and AWS_REGION are required');
+  const database = describeDatabase(databaseUrl);
+  assertTargetsConsistent(bucket, database.host);
+  console.log(
+    `Target bucket: ${bucket}\nTarget database: ${database.label}\nAWS profile: ${process.env.AWS_PROFILE ?? '(default credential chain)'}`,
+  );
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: databaseUrl }),
   });
@@ -73,6 +81,7 @@ async function main() {
     const orphans = findOrphans(objects, referenced, now);
     const report = {
       bucket,
+      database: database.label,
       prefix: USERS_PREFIX,
       scannedAt: now.toISOString(),
       ...summarizeOrphans(orphans),
@@ -91,7 +100,9 @@ async function main() {
         mode: 0o600,
       });
     if (!execute || !orphans.length) return;
-    console.log(`Delete ${orphans.length} objects from bucket ${bucket}?`);
+    console.log(
+      `Delete ${orphans.length} objects from bucket ${bucket} (database: ${database.label})?`,
+    );
     if (!yes) {
       if (!stdin.isTTY)
         throw new Error(
