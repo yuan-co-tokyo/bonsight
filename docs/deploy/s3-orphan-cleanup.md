@@ -13,20 +13,23 @@ pnpm --filter api exec prisma generate
 
 対象は**このシェルで export した環境変数だけ**で指定します。スクリプトは `packages/api/.env` を読み込みません（export し忘れたときに、ローカル開発用の DB やバケットへ黙ってフォールバックするのを防ぐため）。`S3_BUCKET_NAME`・`DATABASE_URL`・`AWS_REGION` のいずれかが未設定なら、何もせずに停止します。本番の値を `.env` に書かないでください。
 
+値は、App Runner が実際に使っている SSM パラメータストアの値（`/bonsight/prod/*`、いずれも SecureString）から取得します。手入力やダッシュボードからのコピーをしないことで、DB とバケットの取り違えを防ぎます。
+
 ```sh
 aws sso login --profile bonsight-prod
 export AWS_PROFILE=bonsight-prod
 export AWS_REGION=ap-northeast-1
 
-# 本番バケット名は CDK の出力から取得する
-export S3_BUCKET_NAME=$(aws cloudformation describe-stacks \
-  --stack-name BonsightMediaStack-prod --region ap-northeast-1 \
-  --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" --output text)
-echo "$S3_BUCKET_NAME"
-
-# 本番 DB（Supabase の Session pooler 接続文字列）。画面表示・履歴に残さず入力する（zsh）
-read -s "DATABASE_URL?DATABASE_URL: " && export DATABASE_URL
+ssm_get() {
+  aws ssm get-parameter --name "/bonsight/prod/$1" --with-decryption \
+    --query Parameter.Value --output text
+}
+export S3_BUCKET_NAME=$(ssm_get S3_BUCKET_NAME)
+export DATABASE_URL=$(ssm_get DATABASE_URL)
+echo "$S3_BUCKET_NAME"   # DATABASE_URL はパスワードを含むので echo しない
 ```
+
+`DATABASE_URL` を含むシェルは、作業が終わったら閉じてください（`unset DATABASE_URL` でも可）。
 
 実行すると最初に `Target bucket` / `Target database`（パスワードは表示しない）/ `AWS profile` を表示します。意図した本番の値になっていることを必ず確認してください。本番バケット（`bonsight-media-prod-*`）に対して `localhost` などローカルの DB ホストが指定された場合は、全写真を未参照と誤判定する危険があるため停止します。
 
