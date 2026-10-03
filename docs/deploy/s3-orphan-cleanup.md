@@ -9,14 +9,31 @@
 ```sh
 pnpm install --frozen-lockfile
 pnpm --filter api exec prisma generate
-export AWS_PROFILE=bonsight-prod
-export AWS_REGION=ap-northeast-1
-export S3_BUCKET_NAME=bonsight-media-prod-123456789012
-# DATABASE_URL に、対象環境の Supabase 接続文字列を安全な方法で設定してください。
-# パスワードを含む文字列をコミットしたり、共有する実行ログに出力しないでください。
 ```
 
-バケット名のアカウント番号は実際の値に置き換えてください。DB とバケットは必ず同じ環境のものを指定します。スクリプトは両者が同じ環境かを自動判定できません。
+対象は**このシェルで export した環境変数だけ**で指定します。スクリプトは `packages/api/.env` を読み込みません（export し忘れたときに、ローカル開発用の DB やバケットへ黙ってフォールバックするのを防ぐため）。`S3_BUCKET_NAME`・`DATABASE_URL`・`AWS_REGION` のいずれかが未設定なら、何もせずに停止します。本番の値を `.env` に書かないでください。
+
+値は、App Runner が実際に使っている SSM パラメータストアの値（`/bonsight/prod/*`、いずれも SecureString）から取得します。手入力やダッシュボードからのコピーをしないことで、DB とバケットの取り違えを防ぎます。
+
+```sh
+aws sso login --profile bonsight-prod
+export AWS_PROFILE=bonsight-prod
+export AWS_REGION=ap-northeast-1
+
+ssm_get() {
+  aws ssm get-parameter --name "/bonsight/prod/$1" --with-decryption \
+    --query Parameter.Value --output text
+}
+export S3_BUCKET_NAME=$(ssm_get S3_BUCKET_NAME)
+export DATABASE_URL=$(ssm_get DATABASE_URL)
+echo "$S3_BUCKET_NAME"   # DATABASE_URL はパスワードを含むので echo しない
+```
+
+`DATABASE_URL` を含むシェルは、作業が終わったら閉じてください（`unset DATABASE_URL` でも可）。
+
+実行すると最初に `Target bucket` / `Target database`（パスワードは表示しない）/ `AWS profile` を表示します。意図した本番の値になっていることを必ず確認してください。本番バケット（`bonsight-media-prod-*`）に対して `localhost` などローカルの DB ホストが指定された場合は、全写真を未参照と誤判定する危険があるため停止します。
+
+DB とバケットは必ず同じ環境のものを指定します。スクリプトが検出できるのは「本番バケット × ローカル DB」の組み合わせだけで、それ以外の取り違え（例: 本番バケット × dev の Supabase）は判定できません。
 
 許可するバケット名は `bonsight-media-dev-<12桁のAWSアカウントID>` または `bonsight-media-prod-<12桁のAWSアカウントID>` のみです。対象プレフィックスは `users/` 固定です。対象外の名前やキーはエラーで停止します。必要な権限は対象バケットの `s3:ListBucket`、削除時のみ対象オブジェクトの `s3:DeleteObject`、および DB の対象テーブルの読み取りです。
 

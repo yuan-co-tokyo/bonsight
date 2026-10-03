@@ -6,6 +6,9 @@ import {
   findOrphans,
   summarizeOrphans,
   validateBucket,
+  requireEnv,
+  describeDatabase,
+  assertTargetsConsistent,
   type OrphanObject,
 } from './orphan-s3';
 const now = new Date('2026-10-03T00:00:00Z');
@@ -206,4 +209,50 @@ it('rejects broken pagination before a report can be used for deletion', async (
       Promise.resolve({ IsTruncated: true, NextContinuationToken: 'same' }),
     ),
   ).rejects.toThrow('pagination');
+});
+
+describe('target safety', () => {
+  it('requires every target to be exported explicitly', () => {
+    expect(() =>
+      requireEnv({ S3_BUCKET_NAME: 'b', DATABASE_URL: ' ' }, [
+        'S3_BUCKET_NAME',
+        'DATABASE_URL',
+        'AWS_REGION',
+      ]),
+    ).toThrow('Missing environment variables: DATABASE_URL, AWS_REGION');
+    expect(
+      requireEnv({ AWS_REGION: ' ap-northeast-1 ' }, ['AWS_REGION']),
+    ).toEqual({ AWS_REGION: 'ap-northeast-1' });
+  });
+
+  it('describes the database without exposing the password', () => {
+    const target = describeDatabase(
+      'postgresql://postgres.abc:s3cr%40t@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres',
+    );
+    expect(target).toEqual({
+      host: 'aws-0-ap-northeast-1.pooler.supabase.com',
+      label:
+        'postgres.abc@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres',
+    });
+    expect(target.label).not.toContain('s3cr');
+    expect(() => describeDatabase('not a url')).toThrow(
+      'DATABASE_URL is not a valid URL',
+    );
+  });
+
+  it('refuses a prod bucket with a local database', () => {
+    for (const host of ['localhost', '127.0.0.1', 'db'])
+      expect(() =>
+        assertTargetsConsistent('bonsight-media-prod-342016537048', host),
+      ).toThrow('Refusing to scan prod bucket');
+    expect(() =>
+      assertTargetsConsistent(
+        'bonsight-media-prod-342016537048',
+        'aws-0-ap-northeast-1.pooler.supabase.com',
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertTargetsConsistent('bonsight-media-dev-698643713146', 'localhost'),
+    ).not.toThrow();
+  });
 });
