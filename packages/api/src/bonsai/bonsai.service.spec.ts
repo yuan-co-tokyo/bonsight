@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  Logger,
   ValidationPipe,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateBonsaiDto } from './dto/create-bonsai.dto';
 import { UpdateBonsaiDto } from './dto/update-bonsai.dto';
+import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { BonsaiService } from './bonsai.service';
 
 jest.mock('../../generated/prisma/client', () => ({
@@ -29,6 +31,7 @@ describe('BonsaiService', () => {
       findUnique: jest.fn<Promise<unknown>, [unknown]>(),
       update: jest.fn<Promise<unknown>, [unknown]>(),
       delete: jest.fn<Promise<unknown>, [unknown]>(),
+      count: jest.fn<Promise<number>, [unknown]>(),
     },
     purchaseCheck: {
       updateMany: jest.fn<Promise<unknown>, [unknown]>(),
@@ -40,6 +43,7 @@ describe('BonsaiService', () => {
   };
 
   let service: BonsaiService;
+  let send: jest.SpyInstance<unknown, unknown[]>;
 
   beforeAll(() => {
     process.env = { ...originalEnv, CLOUDFRONT_DOMAIN: CLOUDFRONT };
@@ -51,8 +55,14 @@ describe('BonsaiService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    send = jest
+      .spyOn(S3Client.prototype, 'send')
+      .mockResolvedValue({} as never);
+    prisma.bonsai.count.mockReset().mockResolvedValue(0);
     service = new BonsaiService(prisma as never);
   });
+
+  afterEach(() => jest.restoreAllMocks());
 
   const pipe = new ValidationPipe({ whitelist: true, transform: true });
 
@@ -262,7 +272,7 @@ describe('BonsaiService', () => {
       data: expect.objectContaining({
         coverImageKey: VALID_COVER_KEY,
         owner: OWNER,
-      }),
+      }) as unknown,
     });
   });
 
@@ -323,5 +333,112 @@ describe('BonsaiService', () => {
     });
     expect(prisma.bonsai.delete).toHaveBeenCalledWith({ where: { id: 'b5' } });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+  describe('old cover cleanup', () => {
+    const nextKey = `users/${OWNER}/covers/new.jpg`;
+    beforeEach(() => {
+      prisma.bonsai.findUnique.mockResolvedValue({
+        id: 'b1',
+        owner: OWNER,
+        coverImageKey: VALID_COVER_KEY,
+      });
+      prisma.bonsai.update.mockResolvedValue({
+        id: 'b1',
+        owner: OWNER,
+        coverImageKey: nextKey,
+      });
+    });
+    it.each([nextKey, null])(
+      'deletes the old cover after saving %s',
+      async (coverImageKey) => {
+        prisma.bonsai.update.mockResolvedValue({
+          id: 'b1',
+          owner: OWNER,
+          coverImageKey,
+        });
+        const result = await service.updateBonsai(
+          'b1',
+          { coverImageKey },
+          OWNER,
+        );
+        expect(result.coverImageKey).toBe(coverImageKey);
+        expect(prisma.bonsai.count).toHaveBeenCalledWith({
+          where: { coverImageKey: VALID_COVER_KEY },
+        });
+        expect(send).toHaveBeenCalledWith(expect.any(DeleteObjectCommand));
+        expect(send.mock.calls[0][0]).toHaveProperty(
+          'input.Key',
+          VALID_COVER_KEY,
+        );
+        expect(prisma.bonsai.update.mock.invocationCallOrder[0]).toBeLessThan(
+          prisma.bonsai.count.mock.invocationCallOrder[0],
+        );
+        expect(prisma.bonsai.count.mock.invocationCallOrder[0]).toBeLessThan(
+          send.mock.invocationCallOrder[0],
+        );
+      },
+    );
+    it.each([
+      { name: 'new' },
+      { coverImageKey: undefined },
+      { coverImageKey: VALID_COVER_KEY },
+    ])('does not delete an unchanged or unspecified cover: %j', async (dto) => {
+      prisma.bonsai.update.mockResolvedValue({
+        id: 'b1',
+        owner: OWNER,
+        coverImageKey: VALID_COVER_KEY,
+      });
+      await service.updateBonsai('b1', dto, OWNER);
+      expect(prisma.bonsai.count).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
+    it.each([
+      null,
+      `users/${OTHER}/covers/old.jpg`,
+      `users/${OWNER}/bonsai/b1/old.jpg`,
+    ])(
+      'does not delete an absent or out-of-scope old key: %s',
+      async (coverImageKey) => {
+        prisma.bonsai.findUnique.mockResolvedValue({
+          id: 'b1',
+          owner: OWNER,
+          coverImageKey,
+        });
+        await service.updateBonsai('b1', { coverImageKey: nextKey }, OWNER);
+        expect(prisma.bonsai.count).not.toHaveBeenCalled();
+        expect(send).not.toHaveBeenCalled();
+      },
+    );
+    it('retains a cover referenced by another bonsai', async () => {
+      prisma.bonsai.count.mockResolvedValue(1);
+      await service.updateBonsai('b1', { coverImageKey: nextKey }, OWNER);
+      expect(send).not.toHaveBeenCalled();
+    });
+    it('returns the saved result and warns when S3 deletion fails', async () => {
+      send.mockRejectedValueOnce(new Error('S3 failure') as never);
+      const warn = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      await expect(
+        service.updateBonsai('b1', { coverImageKey: nextKey }, OWNER),
+      ).resolves.toMatchObject({ coverImageKey: nextKey });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('S3 failure'));
+    });
+    it('retains the old file if the reference check fails', async () => {
+      prisma.bonsai.count.mockRejectedValue(new Error('DB unavailable'));
+      jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      await expect(
+        service.updateBonsai('b1', { coverImageKey: nextKey }, OWNER),
+      ).resolves.toMatchObject({ coverImageKey: nextKey });
+      expect(send).not.toHaveBeenCalled();
+    });
+    it('does not delete if the DB update fails', async () => {
+      prisma.bonsai.update.mockRejectedValueOnce(new Error('update failed'));
+      await expect(
+        service.updateBonsai('b1', { coverImageKey: nextKey }, OWNER),
+      ).rejects.toThrow('update failed');
+      expect(prisma.bonsai.count).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
   });
 });

@@ -12,6 +12,7 @@ import { UpdateBonsaiDto } from './dto/update-bonsai.dto';
 import {
   S3Client,
   DeleteObjectsCommand,
+  DeleteObjectCommand,
   CopyObjectCommand,
 } from '@aws-sdk/client-s3';
 
@@ -166,7 +167,7 @@ export class BonsaiService {
     updateBonsaiDto: UpdateBonsaiDto,
     owner: string,
   ) {
-    await this.getBonsai(id, owner);
+    const previous = await this.getBonsai(id, owner);
     if (updateBonsaiDto.coverImageKey) {
       const coverPrefix = `users/${owner}/covers/`;
       if (!updateBonsaiDto.coverImageKey.startsWith(coverPrefix)) {
@@ -183,6 +184,30 @@ export class BonsaiService {
             : new Date(updateBonsaiDto.acquiredAt),
       },
     });
+    const oldKey = previous.coverImageKey;
+    if (
+      updateBonsaiDto.coverImageKey !== undefined &&
+      oldKey &&
+      oldKey !== bonsai.coverImageKey &&
+      oldKey.startsWith(`users/${owner}/covers/`)
+    ) {
+      try {
+        // Check all bonsai, including this one in case another update restored
+        // the old cover after our update completed.
+        const references = await this.prisma.bonsai.count({
+          where: { coverImageKey: oldKey },
+        });
+        if (references === 0) {
+          await this.s3.send(
+            new DeleteObjectCommand({ Bucket: this.bucket, Key: oldKey }),
+          );
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Old cover cleanup failed for bonsai ${id}: ${String(error)}`,
+        );
+      }
+    }
     return this.toResponseDto(bonsai);
   }
 
