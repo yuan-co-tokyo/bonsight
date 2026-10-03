@@ -8,6 +8,7 @@ import CheckDetail from './screens/checks/CheckDetail'
 import S0Landing from './screens/S0Landing'
 import S1Home from './screens/S1Home'
 import S2Form from './screens/S2Form'
+import GrowthCompare from './screens/compare/GrowthCompare'
 import S3Detail from './screens/S3Detail'
 import S4Upload from './screens/S4Upload'
 import S5AiResult from './screens/S5AiResult'
@@ -38,6 +39,7 @@ function AppRoutes({ authed }: { authed: boolean }) {
         <Route path="/bonsai/new" element={<S2Form />} />
         <Route path="/bonsai/:id/edit" element={<S2Form />} />
         <Route path="/bonsai/:id/photo" element={<S4Upload />} />
+        <Route path="/bonsai/:id/compare" element={<GrowthCompare />} />
         <Route path="/bonsai/:id/ai" element={<S5AiResult />} />
         <Route path="/bonsai/:id" element={<S3Detail />} />
         <Route path="/s3/:id" element={<S3Detail />} />

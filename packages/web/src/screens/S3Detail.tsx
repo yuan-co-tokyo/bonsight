@@ -523,6 +523,7 @@ export default function S3Detail() {
           <Button variant="primary" onClick={() => navigate(`/bonsai/${bonsai.id}/photo`)}>
             <CameraIcon /> 写真を追加
           </Button>
+          {mediaList.filter(media => media.type === 'PHOTO').length >= 2 && <Button variant="secondary" onClick={() => navigate(`/bonsai/${bonsai.id}/compare`)}>成長を比べる</Button>}
           <Button
             variant="secondary"
             onClick={() => { setEditingCareLog(null); setCareFormData({ type: 'WATERING', date: new Date().toISOString().slice(0, 10), memo: '' }); setShowCareForm(true) }}

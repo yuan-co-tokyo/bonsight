@@ -474,4 +474,16 @@ describe('S3Detail', () => {
     await waitFor(() => expect(mockDeleteBonsai).toHaveBeenCalledWith('b1'))
     expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
   })
+  it.each([0, 1, 2])('写真%s枚の場合の比較ボタン', async (count) => {
+    mockGetMedia.mockResolvedValue(mediaFixture('b1').slice(0, count))
+    renderS3Detail('b1')
+    await screen.findByRole('heading', { name: '五葉松「翁」' })
+    const button = screen.queryByRole('button', { name: '成長を比べる' })
+    if (count >= 2) {
+      expect(button).toBeInTheDocument()
+      fireEvent.click(button!)
+      expect(mockNavigate).toHaveBeenCalledWith('/bonsai/b1/compare')
+    } else expect(button).not.toBeInTheDocument()
+  })
+
 })
