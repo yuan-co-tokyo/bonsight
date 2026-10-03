@@ -1,0 +1,114 @@
+.growth-compare {
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+}
+.compare-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.compare-frame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  touch-action: pan-y; /* keep vertical page scroll; horizontal drags move the divider */
+  cursor: ew-resize;
+}
+.compare-frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.compare-date {
+  position: absolute;
+  top: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--color-ink);
+  background: var(--color-bg);
+  font-size: 12px;
+  pointer-events: none;
+}
+.compare-date.before {
+  left: 8px;
+}
+.compare-date.after {
+  right: 8px;
+}
+.compare-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 3px solid var(--color-accent);
+  display: flex;
+  align-items: center;
+  color: var(--color-ink);
+  pointer-events: none;
+}
+.compare-range {
+  display: grid;
+  gap: 4px;
+}
+.compare-range input {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--color-accent);
+}
+.compare-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.compare-side figure {
+  margin: 0;
+  min-width: 0;
+}
+.compare-side img {
+  width: 100%;
+  object-fit: contain;
+  background: var(--color-bg);
+}
+.compare-picker {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  padding: 12px;
+}
+.compare-picker > div {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+}
+.compare-picker button {
+  flex: 0 0 100px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.compare-picker button[aria-pressed='true'] {
+  border-color: var(--color-accent);
+}
+.compare-picker img {
+  width: 88px;
+  height: 76px;
+  object-fit: contain;
+}
+.compare-picker span {
+  display: block;
+  font-size: 12px;
+}
+@media (max-width: 540px) {
+  .compare-side {
+    grid-template-columns: 1fr;
+  }
+}
