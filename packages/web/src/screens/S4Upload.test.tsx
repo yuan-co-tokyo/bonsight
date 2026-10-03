@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { photoCaptureDate } from '../lib/photoCaptureDate'
+vi.mock('../lib/photoCaptureDate', () => ({ photoCaptureDate: vi.fn(), localDateString: () => '2026-10-03' }))
 import S4Upload from './S4Upload'
 
 const mockNavigate = vi.hoisted(() => vi.fn())
@@ -16,6 +18,7 @@ const { mockGetPresignUrl, mockCreateMedia } = vi.hoisted(() => ({
 vi.mock('../api/mediaApi', () => ({
   getPresignUrl: mockGetPresignUrl,
   createMedia: mockCreateMedia,
+  getMedia: vi.fn().mockResolvedValue([]),
 }))
 
 function renderS4Upload(bonsaiId = 'b1') {
@@ -31,6 +34,8 @@ function renderS4Upload(bonsaiId = 'b1') {
 
 describe('S4Upload', () => {
   beforeEach(() => {
+    vi.mocked(photoCaptureDate).mockResolvedValue(null)
+    URL.revokeObjectURL = vi.fn()
     mockNavigate.mockReset()
     mockGetPresignUrl.mockReset()
     mockCreateMedia.mockReset()
@@ -111,6 +116,7 @@ describe('S4Upload', () => {
     const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
     fireEvent.change(fileInput, { target: { files: [file] } })
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'アップロード' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'アップロード' }))
 
     await waitFor(() => {
@@ -161,6 +167,7 @@ describe('S4Upload', () => {
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     fireEvent.change(fileInput, { target: { files: [new File(['img'], 'photo.jpg', { type: 'image/jpeg' })] } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'アップロード' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'アップロード' }))
 
     await waitFor(() => {
@@ -185,6 +192,7 @@ describe('S4Upload', () => {
       target: { files: [new File(['img'], 'photo.jpg', { type: 'image/jpeg' })] },
     })
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'アップロード' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'アップロード' }))
 
     await waitFor(() => {
