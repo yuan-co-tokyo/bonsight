@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import BonsightShell from '../components/BonsightShell'
 import AIBadge from '../components/AIBadge'
 import Button from '../components/Button'
 import PhotoPlaceholder from '../components/PhotoPlaceholder'
-import { getPresignUrl, createMedia } from '../api/mediaApi'
+import { getPresignUrl, createMedia, getMedia, type MediaDtoEx } from '../api/mediaApi'
+
+import CaptureGuide from '../components/capture/CaptureGuide'
+import { localDateString, photoCaptureDate } from '../lib/photoCaptureDate'
 
 const fieldStyle: React.CSSProperties = {
   width: '100%',
@@ -33,14 +36,16 @@ const textareaStyle: React.CSSProperties = {
 }
 
 function todayString() {
-  return new Date().toISOString().slice(0, 10)
+  return localDateString()
 }
 
 export default function S4Upload() {
-  const navigate = useNavigate()
-  // ルートは /bonsai/:id/photo または /s4/:bonsaiId
   const { id, bonsaiId: bonsaiIdParam } = useParams<{ id?: string; bonsaiId?: string }>()
   const bonsaiId = id ?? bonsaiIdParam ?? ''
+  return <UploadContent key={bonsaiId} bonsaiId={bonsaiId} />
+}
+function UploadContent({ bonsaiId }: { bonsaiId: string }) {
+  const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -51,17 +56,48 @@ export default function S4Upload() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
+  const [previousPhoto, setPreviousPhoto] = useState<MediaDtoEx | null>(null)
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [exifNote, setExifNote] = useState(false)
+  const [readingDate, setReadingDate] = useState(false)
+  const selectionVersion = useRef(0)
+  const manualDate = useRef(false)
+  const canUseCamera = typeof navigator.mediaDevices?.getUserMedia === 'function'
+  useEffect(() => {
+    let ignore = false
+    const invalidateSelection = () => { selectionVersion.current++ }
+    if (bonsaiId) getMedia(bonsaiId).then(media => {
+      const latest = media.filter(photo => photo.type === 'PHOTO').sort((a, b) => new Date(b.takenAt || b.createdAt).getTime() - new Date(a.takenAt || a.createdAt).getTime())[0]
+      if (!ignore) setPreviousPhoto(latest ?? null)
+    }).catch(() => { /* File selection remains available if history cannot load. */ })
+    return () => { ignore = true; invalidateSelection() }
+  }, [bonsaiId])
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
+  const closeCamera = useCallback(() => setCameraOpen(false), [])
+  const cameraError = useCallback((message: string) => { setUploadError(message); setCameraOpen(false) }, [])
+  const acceptCapture = useCallback((file: File) => {
+    selectionVersion.current++
+    setSelectedFile(file); setPreviewUrl(URL.createObjectURL(file))
+    setTakenAt(localDateString()); setExifNote(false); setReadingDate(false)
+    manualDate.current = false
+    setUploadError(null); setCameraOpen(false)
+  }, [])
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (f) {
-      setSelectedFile(f)
-      setPreviewUrl(URL.createObjectURL(f))
-      setUploadError(null)
-    }
+    const file = e.target.files?.[0]
+    if (!file) return
+    const version = ++selectionVersion.current
+    setSelectedFile(file); setPreviewUrl(URL.createObjectURL(file)); setUploadError(null)
+    setExifNote(false); setReadingDate(true)
+    if (!manualDate.current) setTakenAt(todayString())
+    void photoCaptureDate(file).then(date => {
+      if (version !== selectionVersion.current) return
+      if (!manualDate.current) { setTakenAt(date ?? todayString()); setExifNote(!!date) }
+      setReadingDate(false)
+    })
   }
 
   async function handleUpload() {
-    if (!selectedFile || !bonsaiId) return
+    if (!selectedFile || !bonsaiId || uploading || readingDate) return
     setUploading(true)
     setUploadError(null)
 
@@ -114,6 +150,7 @@ export default function S4Upload() {
             gap: 20,
           }}
         >
+          {canUseCamera && previousPhoto && <Button variant="secondary" disabled={uploading} onClick={() => setCameraOpen(true)}>ガイド付きで撮影</Button>}
           {/* 写真選択エリア */}
           <div
             role="button" tabIndex={0} aria-label="写真を選択"
@@ -130,7 +167,7 @@ export default function S4Upload() {
             }}
           >
             {previewUrl ? (
-              <img src={previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="選択済み写真" />
+              <img src={previewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="選択済み写真" />
             ) : (
               <PhotoPlaceholder label="タップして写真を選択" aspectRatio="4/3" />
             )}
@@ -170,11 +207,13 @@ export default function S4Upload() {
               id="taken-at"
               type="date"
               value={takenAt}
-              onChange={(e) => setTakenAt(e.target.value)}
+              onChange={(e) => { manualDate.current = true; setExifNote(false); setTakenAt(e.target.value) }}
               style={fieldStyle}
             />
           </div>
 
+          {exifNote && <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>写真の撮影日を入力しました</p>}
+          {readingDate && <p role="status">写真の撮影日を確認しています…</p>}
           {/* キャプション */}
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 6 }}>
@@ -275,13 +314,14 @@ export default function S4Upload() {
       >
         <Button
           variant="primary"
-          disabled={!selectedFile || uploading}
+          disabled={!selectedFile || uploading || readingDate}
           onClick={() => { void handleUpload() }}
           style={{ width: '100%', height: 50, borderRadius: 14 }}
         >
           {uploading ? 'アップロード中...' : 'アップロード'}
         </Button>
       </div>
+      {cameraOpen && previousPhoto && <CaptureGuide photoUrl={previousPhoto.cloudfrontUrl} onClose={closeCamera} onError={cameraError} onCapture={acceptCapture} />}
       <button className="text-action form-cancel" onClick={() => navigate(-1)}>キャンセル</button>
     </BonsightShell>
   )

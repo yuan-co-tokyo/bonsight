@@ -1,0 +1,65 @@
+.capture-guide {
+  box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  border: 0;
+  color: var(--color-ink);
+  background: var(--color-bg);
+  overflow-y: auto;
+}
+.capture-guide[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+.capture-guide::backdrop {
+  background: var(--color-bg);
+}
+.capture-guide header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.capture-guide h2 {
+  font-size: 16px;
+  margin: 0;
+}
+.capture-frame {
+  position: relative;
+  flex-shrink: 0;
+  align-self: center;
+  width: min(100%, calc((100dvh - 280px) * var(--capture-ratio)));
+  min-width: 100px;
+  overflow: hidden;
+  background: var(--color-ink);
+  border-radius: var(--radius-input);
+}
+.capture-frame video,
+.capture-frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.capture-frame img {
+  pointer-events: none;
+}
+.capture-opacity {
+  display: grid;
+  gap: 4px;
+}
+.capture-opacity input {
+  min-height: 44px;
+  width: 100%;
+  accent-color: var(--color-accent);
+}
