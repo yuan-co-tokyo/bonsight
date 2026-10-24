@@ -1,11 +1,11 @@
 node_modules/
-  dist/
-  build/
-  .env
-  .env.*
-  !.env.example
-  *.log
-  .DS_Store
-  packages/api/prisma/*.db
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+packages/api/prisma/*.db
 packages/api/dist/
 infrastructure/cdk.out/
